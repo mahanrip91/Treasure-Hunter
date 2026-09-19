@@ -1,0 +1,147 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    min-height: 100vh;
+    font-family: system-ui, -apple-system, sans-serif;
+    background:
+        radial-gradient(circle at top, #302000 0%, #0b0b0d 45%, #050506 100%);
+    color: white;
+    overflow-x: hidden;
+}
+
+.app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    padding: 35px 22px 20px;
+}
+
+.glow {
+    position: absolute;
+    width: 280px;
+    height: 280px;
+    background: rgba(255, 190, 40, 0.12);
+    filter: blur(80px);
+    border-radius: 50%;
+    top: 30px;
+    pointer-events: none;
+}
+
+header {
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+.logo {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+
+h1 {
+    font-size: 32px;
+    font-weight: 800;
+}
+
+header p {
+    color: #aaa;
+    margin-top: 7px;
+}
+
+main {
+    width: 100%;
+    max-width: 430px;
+    text-align: center;
+    margin-top: 55px;
+    position: relative;
+    z-index: 1;
+}
+
+.treasure {
+    width: 130px;
+    height: 130px;
+    margin: 0 auto 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 72px;
+    border-radius: 35px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+
+h2 {
+    font-size: 23px;
+    margin-bottom: 12px;
+}
+
+.description {
+    color: #aaa;
+    line-height: 1.8;
+    margin-bottom: 28px;
+}
+
+button {
+    width: 100%;
+    border: none;
+    border-radius: 18px;
+    padding: 17px;
+    font-size: 17px;
+    font-weight: 800;
+    cursor: pointer;
+    background: #ffbf2f;
+    color: #17120a;
+    box-shadow: 0 10px 30px rgba(255,190,40,0.25);
+    transition: 0.2s;
+}
+
+button:active {
+    transform: scale(0.97);
+}
+
+.status {
+    margin-top: 18px;
+    color: #999;
+    font-size: 14px;
+}
+
+.location-box {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.location-box div {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+}
+
+.location-box span {
+    color: #888;
+}
+
+.location-box strong {
+    direction: ltr;
+    font-family: monospace;
+}
+
+.hidden {
+    display: none;
+}
+
+footer {
+    margin-top: auto;
+    padding-top: 30px;
+    color: #555;
+    font-size: 12px;
+}
