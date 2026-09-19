@@ -21,26 +21,50 @@
 
     <main>
 
-        <div class="treasure">
-            💰
-        </div>
+        <div class="treasure">💰</div>
 
-        <h2>آماده‌ای گنج رو پیدا کنی؟</h2>
+        <!-- مرحله ۱: یوزرنیم -->
+        <section id="usernameStep">
+            <h2>اول یه اسم برای بازی انتخاب کن 🎮</h2>
 
-        <p class="description">
-            برای پیدا کردن گنج‌های اطراف شما،
-            موقعیت مکانی لازم است.
-        </p>
+            <p class="description">
+                یوزرنیم خودت رو وارد کن تا بازی شروع بشه.
+            </p>
 
-        <button id="startBtn">
-            📍 شروع بازی
-        </button>
+            <input
+                id="usernameInput"
+                type="text"
+                maxlength="30"
+                placeholder="مثلاً Mahan_RIP"
+                autocomplete="off"
+            >
+
+            <button id="usernameBtn">
+                ادامه ➜
+            </button>
+        </section>
+
+        <!-- مرحله ۲: لوکیشن -->
+        <section id="locationStep" class="hidden">
+
+            <h2>آماده‌ای <span id="playerName"></span>؟ 🔥</h2>
+
+            <p class="description">
+                برای پیدا کردن گنج، موقعیت مکانی لازم است.
+            </p>
+
+            <button id="startBtn">
+                📍 ارسال موقعیت و شروع
+            </button>
+
+        </section>
 
         <div id="status" class="status">
             منتظر شروع بازی...
         </div>
 
         <div id="locationBox" class="location-box hidden">
+
             <div>
                 <span>Latitude</span>
                 <strong id="lat">-</strong>
@@ -55,7 +79,22 @@
                 <span>Accuracy</span>
                 <strong id="accuracy">-</strong>
             </div>
+
         </div>
+
+        <!-- مرحله ۳: ورود به بازی -->
+        <section id="gameStep" class="hidden">
+
+            <button id="gameBtn">
+                🎮 ورود به بازی
+            </button>
+
+            <div id="gameError" class="status hidden">
+                ⚠️ بازی در حال آماده‌سازی است.
+                لطفاً بعداً دوباره امتحان کنید.
+            </div>
+
+        </section>
 
     </main>
 
