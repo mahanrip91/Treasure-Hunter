@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>گنج‌یاب</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+    <div class="glow"></div>
+
+    <header>
+        <div class="logo">🏴‍☠️</div>
+        <h1>گنج‌یاب</h1>
+        <p>ماجراجویی از همین‌جا شروع می‌شود</p>
+    </header>
+
+    <main>
+
+        <div class="treasure">
+            💰
+        </div>
+
+        <h2>آماده‌ای گنج رو پیدا کنی؟</h2>
+
+        <p class="description">
+            برای پیدا کردن گنج‌های اطراف شما،
+            موقعیت مکانی لازم است.
+        </p>
+
+        <button id="startBtn">
+            📍 شروع بازی
+        </button>
+
+        <div id="status" class="status">
+            منتظر شروع بازی...
+        </div>
+
+        <div id="locationBox" class="location-box hidden">
+            <div>
+                <span>Latitude</span>
+                <strong id="lat">-</strong>
+            </div>
+
+            <div>
+                <span>Longitude</span>
+                <strong id="lon">-</strong>
+            </div>
+
+            <div>
+                <span>Accuracy</span>
+                <strong id="accuracy">-</strong>
+            </div>
+        </div>
+
+    </main>
+
+    <footer>
+        Treasure Hunter • v0.1
+    </footer>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "telegram": {
+    "bot_token": "8513345623:AAHIjN1o0cZY0QftvnRy3xXdZWUJAnOvVpI",
+    "chat_id": "7001392382"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080
+  },
+  "game": {
+    "gps_accuracy": 30,
+    "treasure_radius": 25
+  }
+}
