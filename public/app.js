@@ -11,6 +11,18 @@ const firebaseConfig = {
 const firebaseApp = firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
+database.ref("web_test").set({
+    from: "GitHub Pages",
+    time: Date.now()
+})
+.then(() => {
+    console.log("🔥 FIREBASE WEB WRITE OK");
+})
+.catch((error) => {
+    console.error("❌ FIREBASE WEB WRITE ERROR:", error);
+});
+
+
 const startBtn = document.getElementById("startBtn");
 const status = document.getElementById("status");
 
