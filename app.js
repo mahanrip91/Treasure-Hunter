@@ -1,7 +1,7 @@
 const SUPABASE_URL = "https://lscynuqzocuvqrdqigoo.supabase.co";
 const SUPABASE_KEY = "sb_publishable__nK_y3ycShuXlzWI0_obCQ_ULYuvMmH";
 
-const usernameStep = document.getElementById("usernameStep");
+const welcomeStep = document.getElementById("welcomeStep");
 const usernameInput = document.getElementById("usernameInput");
 const usernameBtn = document.getElementById("usernameBtn");
 
@@ -49,7 +49,7 @@ usernameBtn.addEventListener("click", () => {
 
     playerName.textContent = username;
 
-    usernameStep.classList.add("hidden");
+    welcomeStep.classList.add("hidden");
     locationStep.classList.remove("hidden");
 
     status.textContent = "حالا موقعیتت رو ارسال کن 📍";
