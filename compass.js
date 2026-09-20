@@ -95,11 +95,23 @@
 
     const seq=Number(target.sequence||1);
 
-    // اختلال ثابت مخصوص هر گنج
-    const fixed=((seq*47)%35)-17;
+    /*
+      قطب‌نمای آسیب‌دیده:
+      خطای اصلی می‌تواند کاملاً جدی باشد؛
+      از -90 تا +90 درجه نسبت به جهت واقعی.
+    */
+    const fixed=((seq*137)%181)-90;
 
-    // اختلال زنده و نرم
-    const drift=Math.sin(Date.now()/850)*5;
+    /*
+      خطای زنده و نرم:
+      قطب‌نما هنگام حرکت کمی نوسان می‌کند
+      و خطا دائماً یک مقدار ثابت نیست.
+    */
+    const t=Date.now()/1200;
+
+    const drift =
+      Math.sin(t)*7 +
+      Math.sin(t*0.43+seq)*4;
 
     return norm(base+fixed+drift);
   }
@@ -412,6 +424,19 @@
         );
       });
 
+    const continueAdventure=
+      document.getElementById(
+        "continueAdventure"
+      );
+
+    if(continueAdventure){
+
+      continueAdventure.addEventListener(
+        "click",
+        startOrientation
+      );
+    }
+
     const scan=
       document.getElementById(
         "scanBtn"
@@ -423,6 +448,50 @@
         "click",
         startOrientation
       );
+    }
+
+    /*
+      وقتی صفحه شکار باز شد، قطب‌نما نباید
+      منتظر «شناسایی دوباره» بماند.
+      روی Android معمولاً permission جداگانه
+      لازم نیست و listener باید همان ابتدا فعال شود.
+    */
+    const gamePage=
+      document.getElementById("gamePage");
+
+    if(gamePage){
+
+      const observer=
+        new MutationObserver(()=>{
+          if(
+            gamePage.classList.contains("active") ||
+            !gamePage.classList.contains("hidden")
+          ){
+            startOrientation();
+          }
+        });
+
+      observer.observe(
+        gamePage,
+        {
+          attributes:true,
+          attributeFilter:["class"]
+        }
+      );
+    }
+
+    /*
+      اگر صفحه شکار از قبل باز بود،
+      همان لحظه سنسور را راه بینداز.
+    */
+    if(
+      gamePage &&
+      (
+        gamePage.classList.contains("active") ||
+        !gamePage.classList.contains("hidden")
+      )
+    ){
+      startOrientation();
     }
 
     /*
