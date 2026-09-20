@@ -20,6 +20,11 @@ let watchId=null;
 let lastPosition=null;
 let currentHeading=0;
 
+// Location reporting
+let lastLocationSentAt=0;
+let locationWriteInFlight=false;
+
+
 function toast(text){
   const t=$("toast");
   t.textContent=text;
@@ -145,6 +150,88 @@ async function loadProfile(){
     console.error("PROFILE LOAD EXCEPTION:",err);
     toast("خطای غیرمنتظره در پروفایل");
     return false;
+  }
+}
+
+
+
+async function saveLocationToSupabase(lat,lon,accuracy,timestamp){
+  if(!session || locationWriteInFlight)return;
+
+  const now=Date.now();
+
+  // حداکثر هر ۵ ثانیه یک location ارسال شود
+  if(now-lastLocationSentAt<5000)return;
+
+  locationWriteInFlight=true;
+  lastLocationSentAt=now;
+
+  try{
+    const userId=session.user.id;
+
+    // username را از profile فعلی می‌گیریم
+    const username=
+      profile?.username ||
+      session.user.user_metadata?.username ||
+      "Unknown";
+
+    /*
+     * اول location جدید را ثبت می‌کنیم.
+     * این باعث می‌شود Backend هیچ‌وقت بدون location نماند.
+     */
+    const {data:newLocation,error:insertError}=await db
+      .from("locations")
+      .insert({
+        user_id:userId,
+        username:username,
+        latitude:Number(lat),
+        longitude:Number(lon),
+        accuracy:Number(accuracy||0),
+        location_timestamp:Number(timestamp||Date.now())
+      })
+      .select("id")
+      .single();
+
+    if(insertError){
+      console.error("[LOCATION] INSERT ERROR:",insertError);
+      return;
+    }
+
+    /*
+     * بعد از ثبت location جدید،
+     * تمام locationهای قدیمی همین کاربر حذف می‌شوند.
+     *
+     * بنابراین برای هر کاربر فقط آخرین location
+     * داخل دیتابیس باقی می‌ماند.
+     */
+    if(newLocation?.id!=null){
+      const {error:deleteError}=await db
+        .from("locations")
+        .delete()
+        .eq("user_id",userId)
+        .neq("id",newLocation.id);
+
+      if(deleteError){
+        console.warn(
+          "[LOCATION] OLD LOCATION CLEANUP ERROR:",
+          deleteError
+        );
+      }
+    }
+
+    console.log(
+      "[LOCATION] SENT:",
+      username,
+      Number(lat).toFixed(7),
+      Number(lon).toFixed(7),
+      "accuracy:",
+      Number(accuracy||0).toFixed(1)
+    );
+
+  }catch(err){
+    console.error("[LOCATION] ERROR:",err);
+  }finally{
+    locationWriteInFlight=false;
   }
 }
 
@@ -668,6 +755,18 @@ function startTracking(){
       ){
         return;
       }
+
+      /*
+       * Location reporting:
+       * هر ۵ ثانیه آخرین موقعیت معتبر کاربر
+       * برای Backend داخل جدول locations ثبت می‌شود.
+       */
+      saveLocationToSupabase(
+        lat,
+        lon,
+        accuracy,
+        Number(p.timestamp||now)
+      );
 
       /*
        * GPS خیلی بد را قبول نکن.
