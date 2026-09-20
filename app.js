@@ -167,6 +167,151 @@ async function getCurrentPositionAsync(){
   });
 }
 
+
+async function savePlayerSaleZone(lat,lon){
+  if(!session)return false;
+
+  const userId=session.user.id;
+
+  try{
+    /*
+     * اگر منطقه قبلی وجود داشته باشد، همان رکورد را به
+     * محل شروع شکار جدید منتقل می‌کنیم.
+     */
+    const {data:updated,error:updateError}=await db
+      .from("player_zones")
+      .update({
+        center_latitude:lat,
+        center_longitude:lon,
+        updated_at:new Date().toISOString()
+      })
+      .eq("user_id",userId)
+      .select()
+      .maybeSingle();
+
+    if(updateError){
+      console.error("SALE ZONE UPDATE ERROR:",updateError);
+      return false;
+    }
+
+    if(updated){
+      console.log("[SALE ZONE] updated:",lat,lon);
+      return true;
+    }
+
+    const {error:insertError}=await db
+      .from("player_zones")
+      .insert({
+        user_id:userId,
+        center_latitude:lat,
+        center_longitude:lon,
+        radius_m:1000,
+        exchange_radius_m:150
+      });
+
+    if(insertError){
+      console.error("SALE ZONE INSERT ERROR:",insertError);
+      return false;
+    }
+
+    console.log("[SALE ZONE] created:",lat,lon);
+    return true;
+
+  }catch(err){
+    console.error("SALE ZONE ERROR:",err);
+    return false;
+  }
+}
+
+
+function buildMapLinks(lat,lon){
+  const coords=`${Number(lat).toFixed(7)},${Number(lon).toFixed(7)}`;
+
+  /*
+   * Google Maps universal URL:
+   * Android -> Maps app if installed
+   * otherwise -> browser
+   */
+  const google=
+    "https://www.google.com/maps/search/?api=1&query="+
+    encodeURIComponent(coords);
+
+  /*
+   * Neshan Android intent.
+   * If Neshan is installed -> opens the app.
+   * Otherwise -> fallback to Neshan web.
+   */
+  const neshanWeb=
+    "https://nshn.ir/?lat="+
+    encodeURIComponent(lat)+
+    "&lng="+
+    encodeURIComponent(lon);
+
+  const neshanIntent=
+    "intent://nshn.ir/?lat="+
+    encodeURIComponent(lat)+
+    "&lng="+
+    encodeURIComponent(lon)+
+    "#Intent;scheme=http;package=org.rajman.neshan.traffic.tehran.navigator;"+
+    "S.browser_fallback_url="+
+    encodeURIComponent(neshanWeb)+
+    ";end";
+
+  return {google,neshanWeb,neshanIntent};
+}
+
+
+function showCashoutMapLinks(lat,lon){
+  const box=$("cashoutMapLinks");
+
+  if(!box)return;
+
+  const links=buildMapLinks(lat,lon);
+
+  box.innerHTML=`
+    <div class="cashout-map-title">
+      📍 محل تبدیل گنج
+    </div>
+
+    <div class="cashout-map-links">
+      <a
+        class="map-link google-map-link"
+        href="${links.google}"
+        target="_blank"
+        rel="noopener">
+        🗺️ دیدن محل فروش در Google Maps
+      </a>
+
+      <a
+        class="map-link neshan-map-link"
+        href="${links.neshanIntent}">
+        📍 دیدن محل فروش در نشان
+      </a>
+    </div>
+  `;
+
+  box.classList.remove("hidden");
+}
+
+
+async function loadSaleZone(){
+  if(!session)return null;
+
+  const {data,error}=await db
+    .from("player_zones")
+    .select("center_latitude,center_longitude,radius_m,exchange_radius_m")
+    .eq("user_id",session.user.id)
+    .maybeSingle();
+
+  if(error){
+    console.error("SALE ZONE LOAD ERROR:",error);
+    return null;
+  }
+
+  return data;
+}
+
+
 async function setHuntingActive(active){
   if(!session)return false;
 
@@ -413,6 +558,11 @@ async function createGame(){
     const lon=pos.coords.longitude;
 
     /*
+     * محل فروش از همان لحظه شروع شکار تعیین می‌شود.
+     */
+    await savePlayerSaleZone(lat,lon);
+
+    /*
      * شروع شکار از RPC انجام می‌شود تا منطق سمت DB
      * و وضعیت hunting_active همزمان ثبت شوند.
      */
@@ -655,34 +805,71 @@ async function scan(){
 }
 
 async function cashout(){
-  if(!game||!lastPosition)
-    return toast("اول یک منطقه شکار بساز.");
+  if(!session)
+    return;
+
+  /*
+   * محل فروش را از player_zones می‌خوانیم تا همیشه
+   * دقیقاً همان نقطه ثبت‌شده برای کاربر استفاده شود.
+   */
+  const zone=await loadSaleZone();
+
+  if(!zone){
+    return toast("هنوز محل فروش برای حسابت تعیین نشده.");
+  }
+
+  const saleLat=Number(zone.center_latitude);
+  const saleLon=Number(zone.center_longitude);
+
+  const position=lastPosition;
+
+  if(!position){
+    return toast("هنوز موقعیتت دریافت نشده.");
+  }
 
   const d=haversine(
-    lastPosition.latitude,
-    lastPosition.longitude,
-    game.center_lat,
-    game.center_lon
+    position.latitude,
+    position.longitude,
+    saleLat,
+    saleLon
   );
 
-  if(d>game.cashout_radius_m)
-    return toast("برای تبدیل گنج باید داخل محدوده تبدیل باشی.");
+  const exchangeRadius=
+    Number(zone.exchange_radius_m||150);
+
+  if(d>exchangeRadius){
+    return toast(
+      "برای تبدیل گنج باید داخل محدوده فروش باشی. "+
+      `فاصله: ${Math.round(d)} متر`
+    );
+  }
 
   const {data,error}=await db.rpc("cashout_treasures");
 
   if(error){
-    console.error(error);
-    return toast("تبدیل ناموفق بود.");
+    console.error("CASHOUT ERROR:",error);
+    return toast(
+      "تبدیل ناموفق بود: "+
+      (error.message||"خطای ناشناخته")
+    );
   }
 
   const row=Array.isArray(data)?data[0]:data;
 
-  if(!row||!row.coins_added)
+  if(!row||!Number(row.coins_added)){
     return toast("فعلاً گنجی برای تبدیل نداری.");
+  }
 
-  toast(`🪙 ${row.coins_added} سکه گرفتی!`);
   await loadProfile();
+
+  showCashoutMapLinks(saleLat,saleLon);
+
+  toast(
+    `🪙 ${Number(row.coins_added).toLocaleString()} سکه گرفتی!`
+  );
 }
+
+
 
 async function leaderboard(){
   const {data,error}=await db.rpc("leaderboard");
