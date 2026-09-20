@@ -313,3 +313,36 @@ body.light input{background:#f5f6fa;color:#111}
 body.light .topbar{background:#ffffffdd}
 body.light .drawer{background:#fff}
 body.light .google{border:1px solid #ddd}
+
+/* Hunt reset control beside the live distance */
+.game-distance-wrap{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+}
+
+.reset-hunt-btn{
+  width:38px;
+  height:38px;
+  padding:0;
+  margin:0;
+  border:1px solid rgba(255,85,112,.35);
+  border-radius:11px;
+  background:rgba(255,85,112,.12);
+  color:var(--danger);
+  display:grid;
+  place-items:center;
+  font-size:18px;
+  line-height:1;
+  transition:.2s;
+}
+
+.reset-hunt-btn:hover{
+  background:rgba(255,85,112,.22);
+  border-color:var(--danger);
+}
+
+.reset-hunt-btn:active{
+  transform:scale(.92);
+}

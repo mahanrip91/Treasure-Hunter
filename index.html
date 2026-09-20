@@ -149,7 +149,15 @@
 <section id="gamePage" class="page">
   <div class="game-head">
     <span class="pill">🧭 شکار فعال</span>
-    <span id="gameDistance">-- متر</span>
+
+    <div class="game-distance-wrap">
+      <span id="gameDistance">-- متر</span>
+      <button id="resetHuntBtn"
+              class="reset-hunt-btn"
+              type="button"
+              aria-label="پاک کردن مکان فعلی"
+              title="پاک کردن مکان فعلی">🗑️</button>
+    </div>
   </div>
 
   <div class="compass-wrap">
@@ -170,13 +178,7 @@
     <p id="targetHint">قطب‌نما کمی اختلال دارد... با آزمون و خطا مسیرت را پیدا کن.</p>
   </div>
 
-  <button id="resetHuntBtn"
-          class="danger huge"
-          type="button">
-      🗑️ پاک کردن مکان فعلی
-    </button>
-
-    <button id="scanBtn" class="primary huge">
+  <button id="scanBtn" class="primary huge">
       📡 شناسایی دوباره
     </button>
 
