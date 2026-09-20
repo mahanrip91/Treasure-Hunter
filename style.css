@@ -678,3 +678,118 @@ body.light .google{border:1px solid #ddd}
   }
 }
 
+
+
+/* ============================================================
+   TREASURE_HUNTER_AUTH_RANKING_STYLES_V1
+   ============================================================ */
+
+.leaderboard-tabs{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:8px;
+  margin-bottom:14px;
+}
+
+.leaderboard-tab{
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:15px;
+  padding:13px 12px;
+  background:var(--panel);
+  color:var(--muted);
+  font-weight:850;
+  text-align:center;
+}
+
+.leaderboard-tab.active{
+  color:var(--text);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(124,92,255,.22),
+      rgba(245,185,66,.10)
+    );
+  border-color:rgba(124,92,255,.45);
+}
+
+.leaderboard-loading,
+.leaderboard-empty{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:22px;
+  text-align:center;
+  color:var(--muted);
+}
+
+.leaderboard-item{
+  min-height:72px;
+}
+
+.rank{
+  font-size:17px;
+  color:var(--gold2);
+  font-weight:950;
+}
+
+.rank-name b{
+  display:block;
+}
+
+.rank-name small{
+  margin-top:3px;
+  font-size:11px;
+}
+
+.auth-helper{
+  text-align:center;
+  margin-top:10px;
+}
+
+.account-section{
+  padding:20px;
+}
+
+.account-section h2{
+  margin-bottom:5px;
+}
+
+.account-security-box{
+  margin-top:4px;
+  padding:0;
+}
+
+.account-security-box.hidden{
+  display:none;
+}
+
+.account-section input:disabled{
+  opacity:.72;
+  cursor:not-allowed;
+}
+
+.account-section .primary,
+.account-section .secondary{
+  margin-top:14px;
+}
+
+@media (min-width:560px){
+
+  .leaderboard-tabs{
+    grid-template-columns:repeat(3,1fr);
+  }
+
+}
+
+body.light .leaderboard-tab{
+  background:var(--panel);
+}
+
+body.light .leaderboard-tab.active{
+  background:linear-gradient(
+    135deg,
+    rgba(124,92,255,.12),
+    rgba(245,185,66,.12)
+  );
+}

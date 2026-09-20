@@ -1733,3 +1733,1216 @@ document.addEventListener("DOMContentLoaded",()=>{
     reset.addEventListener("click",resetCurrentHunt);
   }
 });
+
+
+/* ============================================================
+   TREASURE_HUNTER_AUTH_RANKING_PATCH_V1
+   ============================================================ */
+
+(function(){
+
+  "use strict";
+
+  function thToast(message){
+    if(typeof toast === "function"){
+      toast(message);
+    }else{
+      alert(message);
+    }
+  }
+
+  function thStatus(message){
+    const x=document.getElementById("authStatus");
+    if(x)x.textContent=message;
+  }
+
+  function thAccountStatus(message){
+    const x=document.getElementById("accountStatus");
+    if(x)x.textContent=message;
+  }
+
+  function normalizePhone(value){
+    let p=String(value||"")
+      .trim()
+      .replace(/[()\s-]/g,"");
+
+    if(!p)return null;
+
+    if(/^09\d{9}$/.test(p)){
+      return "+98"+p.slice(1);
+    }
+
+    if(/^9\d{9}$/.test(p)){
+      return "+98"+p;
+    }
+
+    if(/^00\d+$/.test(p)){
+      return "+"+p.slice(2);
+    }
+
+    return p;
+  }
+
+  function validPhone(value){
+    const p=normalizePhone(value);
+    return !!p && /^\+[1-9]\d{7,14}$/.test(p);
+  }
+
+  function hasPasswordIdentity(){
+    try{
+      return !!session?.user?.identities?.some(
+        x=>x.provider==="email"
+      );
+    }catch(_){
+      return true;
+    }
+  }
+
+  function cloneButton(id){
+    const old=document.getElementById(id);
+    if(!old)return null;
+
+    const fresh=old.cloneNode(true);
+    old.replaceWith(fresh);
+
+    return fresh;
+  }
+
+  async function resolveLoginEmail(identifier){
+
+    const raw=String(identifier||"").trim();
+
+    if(!raw){
+      throw new Error("شناسه ورود را وارد کن.");
+    }
+
+    let normalized=raw;
+
+    if(
+      raw.startsWith("+") ||
+      /^0\d+$/.test(raw) ||
+      /^\d{8,15}$/.test(raw)
+    ){
+      normalized=normalizePhone(raw)||raw;
+    }
+
+    const {data,error}=await db.rpc(
+      "get_auth_email_by_identifier",
+      {
+        p_identifier:normalized
+      }
+    );
+
+    if(error){
+      console.error(
+        "[AUTH] IDENTIFIER LOOKUP ERROR:",
+        error
+      );
+      throw new Error(
+        "خطا در پیدا کردن حساب."
+      );
+    }
+
+    if(!data){
+      throw new Error(
+        "این ایمیل، یوزرنیم یا شماره موبایل پیدا نشد."
+      );
+    }
+
+    return data;
+  }
+
+
+  async function patchedLogin(){
+
+    const identifier=
+      document.getElementById("loginUsername")?.value.trim();
+
+    const password=
+      document.getElementById("loginPassword")?.value;
+
+    if(!identifier){
+      thStatus("ایمیل، یوزرنیم یا شماره موبایل را وارد کن.");
+      return;
+    }
+
+    if(!password){
+      thStatus("رمز عبور را وارد کن.");
+      return;
+    }
+
+    const button=document.getElementById("loginBtn");
+
+    if(button){
+      button.disabled=true;
+      button.textContent="در حال ورود...";
+    }
+
+    try{
+
+      const email=
+        await resolveLoginEmail(identifier);
+
+      const {data,error}=
+        await db.auth.signInWithPassword({
+          email,
+          password
+        });
+
+      if(error){
+        console.error(
+          "[AUTH] LOGIN ERROR:",
+          error
+        );
+
+        thStatus(
+          error.message ||
+          "ورود ناموفق بود."
+        );
+
+        return;
+      }
+
+      session=data.session;
+
+      await loadProfile();
+
+      thStatus("ورود موفق بود ✅");
+
+      setPage("dashboard");
+
+      if(typeof updateUI==="function"){
+        updateUI();
+      }
+
+    }catch(error){
+
+      console.error(
+        "[AUTH] LOGIN EXCEPTION:",
+        error
+      );
+
+      thStatus(
+        error.message ||
+        "خطای غیرمنتظره در ورود."
+      );
+
+    }finally{
+
+      if(button){
+        button.disabled=false;
+        button.textContent="ورود به حساب ➜";
+      }
+    }
+  }
+
+
+  async function patchedSignup(){
+
+    const username=
+      document.getElementById("signupUsername")
+        ?.value.trim();
+
+    const password=
+      document.getElementById("signupPassword")
+        ?.value;
+
+    const password2=
+      document.getElementById("signupPassword2")
+        ?.value;
+
+    const email=
+      document.getElementById("signupEmail")
+        ?.value.trim();
+
+    const phoneRaw=
+      document.getElementById("signupPhone")
+        ?.value.trim();
+
+    const phone=
+      normalizePhone(phoneRaw);
+
+    if(!validUsername(username)){
+      thStatus(
+        "یوزرنیم باید ۳ تا ۲۴ کاراکتر و فقط شامل حروف انگلیسی، عدد یا _ باشد."
+      );
+      return;
+    }
+
+    if(!password || password.length<6){
+      thStatus(
+        "رمز عبور باید حداقل ۶ کاراکتر باشد."
+      );
+      return;
+    }
+
+    if(password!==password2){
+      thStatus(
+        "تکرار رمز عبور با رمز اصلی یکی نیست."
+      );
+      return;
+    }
+
+    if(phoneRaw && !validPhone(phoneRaw)){
+      thStatus(
+        "شماره موبایل معتبر نیست."
+      );
+      return;
+    }
+
+    if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+      thStatus(
+        "ایمیل معتبر نیست."
+      );
+      return;
+    }
+
+    const button=
+      document.getElementById("signupBtn");
+
+    if(button){
+      button.disabled=true;
+      button.textContent="در حال ساخت حساب...";
+    }
+
+    try{
+
+      /*
+       * اگر ایمیل واقعی وارد نشده باشد، Auth از همان
+       * ایمیل داخلی قبلی استفاده می‌کند.
+       *
+       * شماره فقط در profiles ذخیره می‌شود و SMS ندارد.
+       */
+      const authEmail=
+        email ||
+        authEmailForUsername(username);
+
+      const {data,error}=
+        await db.auth.signUp({
+          email:authEmail,
+          password,
+          options:{
+            data:{
+              username,
+              phone:phone||null
+            }
+          }
+        });
+
+      if(error){
+        console.error(
+          "[AUTH] SIGNUP ERROR:",
+          error
+        );
+
+        thStatus(
+          error.message ||
+          "ثبت نام ناموفق بود."
+        );
+
+        return;
+      }
+
+      if(data.user){
+
+        if(data.session){
+          session=data.session;
+        }
+
+        /*
+         * Trigger دیتابیس phone را از metadata ذخیره می‌کند.
+         * اگر session داریم، اینجا هم پروفایل را sync می‌کنیم.
+         */
+        if(data.session){
+
+          const updateData={
+            username,
+            phone:phone||null
+          };
+
+          if(email){
+            updateData.email=email;
+          }
+
+          const {error:profileError}=
+            await db
+              .from("profiles")
+              .update(updateData)
+              .eq("id",data.user.id);
+
+          if(profileError){
+            console.warn(
+              "[AUTH] PROFILE SYNC ERROR:",
+              profileError
+            );
+          }
+
+          await loadProfile();
+
+          setPage("dashboard");
+
+          thStatus(
+            "حساب ساخته شد و آماده‌ای 🔥"
+          );
+
+        }else{
+
+          /*
+           * وقتی Confirm Email روشن باشد،
+           * Supabase session را تا تأیید ایمیل نمی‌دهد.
+           */
+          if(email){
+
+            thStatus(
+              "حساب ساخته شد. ایمیل تأیید Treasure Hunter را باز کن و تأییدش کن. 📧"
+            );
+
+          }else{
+
+            thStatus(
+              "حساب ساخته شد. اگر تأیید ایمیل در Supabase فعال باشد، برای حساب بدون ایمیل باید آن گزینه خاموش باشد."
+            );
+          }
+        }
+      }
+
+    }catch(error){
+
+      console.error(
+        "[AUTH] SIGNUP EXCEPTION:",
+        error
+      );
+
+      thStatus(
+        error.message ||
+        "خطای غیرمنتظره در ثبت نام."
+      );
+
+    }finally{
+
+      if(button){
+        button.disabled=false;
+        button.textContent=
+          "ساخت حساب و شروع ماجراجویی ✨";
+      }
+    }
+  }
+
+
+  function authEmailForUsername(username){
+    return `${String(username)
+      .trim()
+      .toLowerCase()}@username.treasure-hunter.invalid`;
+  }
+
+
+  async function verifyCurrentPassword(password){
+
+    if(!password){
+      throw new Error(
+        "برای این تغییر باید رمز عبور فعلی را وارد کنی."
+      );
+    }
+
+    const currentUser=
+      session?.user;
+
+    if(!currentUser){
+      throw new Error(
+        "نشست کاربری پیدا نشد."
+      );
+    }
+
+    let email=currentUser.email;
+
+    if(!email){
+      const {data,error}=
+        await db.auth.getUser();
+
+      if(error || !data?.user?.email){
+        throw new Error(
+          "ایمیل Auth حساب پیدا نشد."
+        );
+      }
+
+      email=data.user.email;
+    }
+
+    const {data,error}=
+      await db.auth.signInWithPassword({
+        email,
+        password
+      });
+
+    if(error || !data?.session){
+      throw new Error(
+        "رمز عبور فعلی اشتباه است."
+      );
+    }
+
+    session=data.session;
+
+    return true;
+  }
+
+
+  async function saveUsername(){
+
+    if(!session?.user){
+      thAccountStatus(
+        "ابتدا وارد حساب شو."
+      );
+      return;
+    }
+
+    const newUsername=
+      document.getElementById("newUsername")
+        ?.value.trim();
+
+    if(!validUsername(newUsername)){
+      thAccountStatus(
+        "یوزرنیم جدید معتبر نیست."
+      );
+      return;
+    }
+
+    if(newUsername===profile?.username){
+      thAccountStatus(
+        "یوزرنیم جدید با قبلی فرقی ندارد."
+      );
+      return;
+    }
+
+    try{
+
+      /*
+       * طبق خواسته:
+       * اگر یوزرنیم فعلی وجود دارد -> رمز لازم است.
+       * اگر روزی حسابی بدون username داشته باشیم -> رمز لازم نیست.
+       */
+      if(profile?.username){
+
+        await verifyCurrentPassword(
+          document.getElementById(
+            "usernameCurrentPassword"
+          )?.value
+        );
+      }
+
+      const {error}=await db
+        .from("profiles")
+        .update({
+          username:newUsername,
+          updated_at:new Date().toISOString()
+        })
+        .eq("id",session.user.id);
+
+      if(error){
+
+        if(error.code==="23505"){
+          throw new Error(
+            "این یوزرنیم قبلاً استفاده شده."
+          );
+        }
+
+        throw error;
+      }
+
+      profile.username=newUsername;
+
+      document.getElementById(
+        "accountUsername"
+      ).value=newUsername;
+
+      document.getElementById(
+        "newUsername"
+      ).value="";
+
+      if(typeof updateUI==="function"){
+        updateUI();
+      }
+
+      thAccountStatus(
+        "یوزرنیم با موفقیت تغییر کرد ✅"
+      );
+
+    }catch(error){
+
+      console.error(
+        "[ACCOUNT] USERNAME ERROR:",
+        error
+      );
+
+      thAccountStatus(
+        error.message ||
+        "خطا در تغییر یوزرنیم."
+      );
+    }
+  }
+
+
+  async function savePhone(){
+
+    if(!session?.user){
+      thAccountStatus(
+        "ابتدا وارد حساب شو."
+      );
+      return;
+    }
+
+    const raw=
+      document.getElementById("newPhone")
+        ?.value.trim();
+
+    if(!validPhone(raw)){
+      thAccountStatus(
+        "شماره موبایل معتبر نیست."
+      );
+      return;
+    }
+
+    const phone=
+      normalizePhone(raw);
+
+    try{
+
+      /*
+       * افزودن شماره اول -> بدون رمز.
+       * تغییر شماره موجود -> رمز لازم.
+       */
+      if(profile?.phone){
+        await verifyCurrentPassword(
+          document.getElementById(
+            "phoneCurrentPassword"
+          )?.value
+        );
+      }
+
+      const {error}=await db
+        .from("profiles")
+        .update({
+          phone,
+          updated_at:new Date().toISOString()
+        })
+        .eq("id",session.user.id);
+
+      if(error){
+
+        if(error.code==="23505"){
+          throw new Error(
+            "این شماره قبلاً به یک حساب دیگر وصل شده."
+          );
+        }
+
+        throw error;
+      }
+
+      profile.phone=phone;
+
+      document.getElementById(
+        "accountPhone"
+      ).value=phone;
+
+      document.getElementById(
+        "newPhone"
+      ).value="";
+
+      thAccountStatus(
+        "شماره موبایل ذخیره شد ✅"
+      );
+
+    }catch(error){
+
+      console.error(
+        "[ACCOUNT] PHONE ERROR:",
+        error
+      );
+
+      thAccountStatus(
+        error.message ||
+        "خطا در ذخیره شماره."
+      );
+    }
+  }
+
+
+  async function saveEmail(){
+
+    if(!session?.user){
+      thAccountStatus(
+        "ابتدا وارد حساب شو."
+      );
+      return;
+    }
+
+    const email=
+      document.getElementById("newEmail")
+        ?.value.trim()
+        .toLowerCase();
+
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+      thAccountStatus(
+        "ایمیل معتبر نیست."
+      );
+      return;
+    }
+
+    try{
+
+      /*
+       * اگر ایمیل واقعی فعلی وجود دارد،
+       * برای تغییر آن رمز فعلی لازم است.
+       *
+       * اگر ایمیل ندارد، اضافه کردن ایمیل
+       * بدون رمز مجاز است.
+       */
+      if(profile?.email){
+        await verifyCurrentPassword(
+          document.getElementById(
+            "emailCurrentPassword"
+          )?.value
+        );
+      }
+
+      const {data,error}=
+        await db.auth.updateUser({
+          email
+        });
+
+      if(error){
+        throw error;
+      }
+
+      /*
+       * برای ورود با ایمیل جدید، رکورد profile را هم sync می‌کنیم.
+       * خود Auth تأیید ایمیل را انجام می‌دهد.
+       */
+      const {error:profileError}=
+        await db
+          .from("profiles")
+          .update({
+            email,
+            updated_at:new Date().toISOString()
+          })
+          .eq("id",session.user.id);
+
+      if(profileError){
+        console.warn(
+          "[ACCOUNT] EMAIL PROFILE SYNC:",
+          profileError
+        );
+      }
+
+      profile.email=email;
+
+      document.getElementById(
+        "accountEmail"
+      ).value=email;
+
+      document.getElementById(
+        "newEmail"
+      ).value="";
+
+      thAccountStatus(
+        "درخواست ایمیل ثبت شد. پیام تأیید Treasure Hunter را در ایمیل جدید باز کن و تأییدش کن. 📧"
+      );
+
+    }catch(error){
+
+      console.error(
+        "[ACCOUNT] EMAIL ERROR:",
+        error
+      );
+
+      thAccountStatus(
+        error.message ||
+        "خطا در تغییر ایمیل."
+      );
+    }
+  }
+
+
+  async function saveAccountPassword(){
+
+    if(!session?.user){
+      thAccountStatus(
+        "ابتدا وارد حساب شو."
+      );
+      return;
+    }
+
+    const current=
+      document.getElementById(
+        "accountCurrentPassword"
+      )?.value;
+
+    const password=
+      document.getElementById(
+        "accountNewPassword"
+      )?.value;
+
+    const password2=
+      document.getElementById(
+        "accountNewPassword2"
+      )?.value;
+
+    if(!password || password.length<6){
+      thAccountStatus(
+        "رمز جدید باید حداقل ۶ کاراکتر باشد."
+      );
+      return;
+    }
+
+    if(password!==password2){
+      thAccountStatus(
+        "تکرار رمز جدید با رمز اصلی یکی نیست."
+      );
+      return;
+    }
+
+    try{
+
+      const alreadyHasPassword=
+        hasPasswordIdentity();
+
+      /*
+       * اگر حساب قبلاً رمز داشته:
+       * رمز قبلی الزامی است.
+       *
+       * اگر حساب OAuth/Google بوده و رمز نداشته:
+       * فقط رمز جدید + تکرار رمز کافی است.
+       */
+      if(alreadyHasPassword){
+
+        await verifyCurrentPassword(
+          current
+        );
+      }
+
+      const options={
+        password
+      };
+
+      /*
+       * supabase-js فعلی current_password را
+       * پشتیبانی می‌کند؛ اگر رمز قبلی داشت،
+       * آن را هم به Auth می‌دهیم.
+       */
+      if(alreadyHasPassword){
+        options.current_password=current;
+      }
+
+      const {error}=
+        await db.auth.updateUser(
+          options
+        );
+
+      if(error){
+        throw error;
+      }
+
+      document.getElementById(
+        "accountCurrentPassword"
+      ).value="";
+
+      document.getElementById(
+        "accountNewPassword"
+      ).value="";
+
+      document.getElementById(
+        "accountNewPassword2"
+      ).value="";
+
+      thAccountStatus(
+        alreadyHasPassword
+          ? "رمز عبور تغییر کرد ✅"
+          : "رمز عبور برای حساب اضافه شد ✅"
+      );
+
+    }catch(error){
+
+      console.error(
+        "[ACCOUNT] PASSWORD ERROR:",
+        error
+      );
+
+      thAccountStatus(
+        error.message ||
+        "خطا در تغییر رمز عبور."
+      );
+    }
+  }
+
+
+  async function renderLeaderboard(metric){
+
+    const box=
+      document.getElementById(
+        "leaderboard"
+      );
+
+    if(!box)return;
+
+    box.innerHTML=
+      '<div class="leaderboard-loading">در حال دریافت رتبه‌بندی...</div>';
+
+    const {data,error}=
+      await db.rpc(
+        "leaderboard_metric",
+        {
+          p_metric:metric
+        }
+      );
+
+    if(error){
+
+      console.error(
+        "[LEADERBOARD] ERROR:",
+        error
+      );
+
+      box.innerHTML=
+        '<div class="leaderboard-empty">خطا در دریافت رتبه‌بندی.</div>';
+
+      return;
+    }
+
+    if(!data?.length){
+
+      box.innerHTML=
+        '<div class="leaderboard-empty">هنوز رکوردی برای نمایش وجود ندارد.</div>';
+
+      return;
+    }
+
+    const titles={
+      total_earned:"پول کلی جمع‌شده",
+      coins:"پول فعلی",
+      treasures_count:"گنج کلی جمع‌شده"
+    };
+
+    box.innerHTML=data.map(row=>{
+
+      const value=
+        Number(row.value||0)
+          .toLocaleString();
+
+      const suffix=
+        metric==="treasures_count"
+          ? " گنج"
+          : " سکه";
+
+      return `
+        <div class="leaderboard-item">
+          <div class="rank">
+            #${row.rank_no}
+          </div>
+
+          <div class="rank-name">
+            <b>${escapeHtml(row.username||"شکارچی")}</b>
+            <small>
+              ${titles[metric]}
+            </small>
+          </div>
+
+          <div class="rank-coins">
+            ${value}${suffix}
+          </div>
+        </div>
+      `;
+
+    }).join("");
+  }
+
+
+  function escapeHtml(value){
+
+    return String(value)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+
+  function updateAccountUI(){
+
+    if(!profile)return;
+
+    const username=
+      document.getElementById(
+        "accountUsername"
+      );
+
+    const phone=
+      document.getElementById(
+        "accountPhone"
+      );
+
+    const email=
+      document.getElementById(
+        "accountEmail"
+      );
+
+    if(username)
+      username.value=
+        profile.username||"";
+
+    if(phone)
+      phone.value=
+        profile.phone||"شماره ثبت نشده";
+
+    if(email)
+      email.value=
+        profile.email ||
+        session?.user?.email ||
+        "ایمیل ثبت نشده";
+
+    const hasPassword=
+      hasPasswordIdentity();
+
+    const currentBox=
+      document.getElementById(
+        "passwordCurrentBox"
+      );
+
+    const help=
+      document.getElementById(
+        "passwordHelp"
+      );
+
+    if(currentBox){
+      currentBox.classList.toggle(
+        "hidden",
+        !hasPassword
+      );
+    }
+
+    if(help){
+      help.textContent=
+        hasPassword
+          ? "برای تغییر رمز، رمز قبلی لازم است."
+          : "این حساب هنوز رمز عبور ندارد؛ رمز جدید را دو بار وارد کن تا فعال شود.";
+    }
+
+    const usernameSecurity=
+      document.getElementById(
+        "usernamePasswordBox"
+      );
+
+    if(usernameSecurity){
+      usernameSecurity.classList.toggle(
+        "hidden",
+        !profile.username
+      );
+    }
+
+    const phoneSecurity=
+      document.getElementById(
+        "phonePasswordBox"
+      );
+
+    if(phoneSecurity){
+      phoneSecurity.classList.toggle(
+        "hidden",
+        !profile.phone
+      );
+    }
+
+    const emailSecurity=
+      document.getElementById(
+        "emailPasswordBox"
+      );
+
+    if(emailSecurity){
+      emailSecurity.classList.toggle(
+        "hidden",
+        !profile.email
+      );
+    }
+  }
+
+
+  function installAuthHandlers(){
+
+    const loginBtn=
+      cloneButton("loginBtn");
+
+    const signupBtn=
+      cloneButton("signupBtn");
+
+    if(loginBtn){
+      loginBtn.addEventListener(
+        "click",
+        patchedLogin
+      );
+    }
+
+    if(signupBtn){
+      signupBtn.addEventListener(
+        "click",
+        patchedSignup
+      );
+    }
+
+    const saveUsernameBtn=
+      document.getElementById(
+        "saveUsernameBtn"
+      );
+
+    const savePhoneBtn=
+      document.getElementById(
+        "savePhoneBtn"
+      );
+
+    const saveEmailBtn=
+      document.getElementById(
+        "saveEmailBtn"
+      );
+
+    const savePasswordBtn=
+      document.getElementById(
+        "saveAccountPasswordBtn"
+      );
+
+    if(saveUsernameBtn)
+      saveUsernameBtn.onclick=
+        saveUsername;
+
+    if(savePhoneBtn)
+      savePhoneBtn.onclick=
+        savePhone;
+
+    if(saveEmailBtn)
+      saveEmailBtn.onclick=
+        saveEmail;
+
+    if(savePasswordBtn)
+      savePasswordBtn.onclick=
+        saveAccountPassword;
+
+
+    document
+      .querySelectorAll(
+        '[data-ranking]'
+      )
+      .forEach(button=>{
+
+        button.addEventListener(
+          "click",
+          ()=>{
+
+            document
+              .querySelectorAll(
+                ".leaderboard-tab"
+              )
+              .forEach(x=>
+                x.classList.remove("active")
+              );
+
+            button.classList.add("active");
+
+            renderLeaderboard(
+              button.dataset.ranking
+            );
+          }
+        );
+      });
+
+
+    document
+      .querySelectorAll(
+        '[data-page="leaderboard"]'
+      )
+      .forEach(button=>{
+
+        button.addEventListener(
+          "click",
+          ()=>{
+
+            setTimeout(
+              ()=>renderLeaderboard(
+                document.querySelector(
+                  ".leaderboard-tab.active"
+                )?.dataset.ranking ||
+                "total_earned"
+              ),
+              50
+            );
+
+          }
+        );
+      });
+
+
+    document
+      .querySelectorAll(
+        '[data-page="account"]'
+      )
+      .forEach(button=>{
+
+        button.addEventListener(
+          "click",
+          ()=>{
+
+            setTimeout(
+              updateAccountUI,
+              50
+            );
+
+          }
+        );
+      });
+
+
+    updateAccountUI();
+  }
+
+
+  /*
+   * اگر updateUI اصلی اجرا شد، Account را هم sync کن.
+   */
+  const originalUpdateUI=
+    window.updateUI;
+
+  window.updateUI=function(){
+
+    if(typeof originalUpdateUI==="function"){
+      originalUpdateUI();
+    }
+
+    try{
+      updateAccountUI();
+    }catch(error){
+      console.warn(
+        "[ACCOUNT] UI SYNC:",
+        error
+      );
+    }
+  };
+
+
+  window.addEventListener(
+    "DOMContentLoaded",
+    ()=>{
+
+      installAuthHandlers();
+
+      setTimeout(
+        updateAccountUI,
+        100
+      );
+
+      setTimeout(
+        ()=>renderLeaderboard(
+          "total_earned"
+        ),
+        300
+      );
+
+    },
+    {once:true}
+  );
+
+})();

@@ -60,7 +60,7 @@
   </div>
 
   <div id="loginBox" class="panel hidden">
-    <h2>ورود به شکارچی</h2>
+    <h2>ورود به شکارچی 🔐</h2>
 
     <button id="googleLogin" class="google">
       <span>G</span> ورود با Google
@@ -68,37 +68,93 @@
 
     <div class="or">یا</div>
 
-    <label>یوزرنیم</label>
-    <input id="loginUsername" maxlength="24" placeholder="مثلاً Mahan_RIP">
+    <label>ایمیل / یوزرنیم / شماره موبایل</label>
+    <input
+      id="loginUsername"
+      maxlength="120"
+      autocomplete="username"
+      placeholder="ایمیل، یوزرنیم یا شماره موبایل">
 
     <label>رمز عبور</label>
-    <input id="loginPassword" type="password" placeholder="رمز عبورت">
+    <input
+      id="loginPassword"
+      type="password"
+      autocomplete="current-password"
+      placeholder="رمز عبورت">
 
-    <button id="loginBtn" class="primary">ورود به حساب ➜</button>
+    <button id="loginBtn" class="primary">
+      ورود به حساب ➜
+    </button>
 
-    <button id="forgotBtn" class="text-btn">رمز عبورم را فراموش کردم</button>
-    <button id="backAuth1" class="text-btn">← برگشت</button>
+    <small class="auth-helper">
+      با هرکدام از ایمیل، یوزرنیم یا شماره موبایلی که به حسابت اضافه کرده‌ای
+      می‌توانی وارد شوی.
+    </small>
+
+    <button id="forgotBtn" class="text-btn">
+      رمز عبورم را فراموش کردم
+    </button>
+
+    <button id="backAuth1" class="text-btn">
+      ← برگشت
+    </button>
   </div>
 
   <div id="signupBox" class="panel hidden">
     <h2>ساخت حساب جدید 🚀</h2>
 
     <label>یوزرنیم *</label>
-    <input id="signupUsername" maxlength="24" placeholder="مثلاً Mahan_RIP">
+    <input
+      id="signupUsername"
+      maxlength="24"
+      autocomplete="username"
+      placeholder="مثلاً Mahan_RIP">
 
     <label>رمز عبور *</label>
-    <input id="signupPassword" type="password" placeholder="حداقل 6 کاراکتر">
+    <input
+      id="signupPassword"
+      type="password"
+      autocomplete="new-password"
+      placeholder="حداقل 6 کاراکتر">
 
     <label>تکرار رمز عبور *</label>
-    <input id="signupPassword2" type="password" placeholder="رمز را دوباره وارد کن">
+    <input
+      id="signupPassword2"
+      type="password"
+      autocomplete="new-password"
+      placeholder="رمز را دوباره وارد کن">
 
     <label>ایمیل <span>(اختیاری)</span></label>
-    <input id="signupEmail" type="email" placeholder="example@gmail.com">
-    <small>برای بازیابی راحت‌تر حساب و ورود Google بهتره ایمیلت رو اضافه کنی.</small>
+    <input
+      id="signupEmail"
+      type="email"
+      autocomplete="email"
+      placeholder="example@gmail.com">
 
-    <button id="signupBtn" class="primary">ساخت حساب و شروع ماجراجویی ✨</button>
+    <small>
+      ایمیل برای بازیابی و تأیید حساب استفاده می‌شود.
+    </small>
 
-    <button id="backAuth2" class="text-btn">← برگشت</button>
+    <label>شماره موبایل <span>(اختیاری)</span></label>
+    <input
+      id="signupPhone"
+      type="tel"
+      inputmode="tel"
+      autocomplete="tel"
+      placeholder="مثلاً 09123456789">
+
+    <small>
+      شماره موبایل اختیاری است؛ بعداً هم می‌توانی از بخش حساب اضافه یا تغییرش بدهی.
+      در صورت فراموشی نام کاربری، با شماره موبایل و رمز عبور هم می‌توانی وارد شوی.
+    </small>
+
+    <button id="signupBtn" class="primary">
+      ساخت حساب و شروع ماجراجویی ✨
+    </button>
+
+    <button id="backAuth2" class="text-btn">
+      ← برگشت
+    </button>
   </div>
 
   <div id="recoveryBox" class="panel hidden">
@@ -210,11 +266,36 @@
 <!-- LEADERBOARD -->
 <section id="leaderboardPage" class="page">
   <div class="page-title">
-    <h1>🏆 شکارچی‌های برتر</h1>
-    <p>۲۰ نفر برتر بر اساس سکه</p>
+    <h1>🏆 رتبه‌بندی شکارچی‌ها</h1>
+    <p>سه جدول مختلف برای مقایسه‌ی شکارچی‌ها</p>
   </div>
+
+  <div class="leaderboard-tabs" role="tablist">
+    <button
+      class="leaderboard-tab active"
+      data-ranking="total_earned"
+      type="button">
+      💰 بیشترین پول کلی
+    </button>
+
+    <button
+      class="leaderboard-tab"
+      data-ranking="coins"
+      type="button">
+      🪙 بیشترین پول فعلی
+    </button>
+
+    <button
+      class="leaderboard-tab"
+      data-ranking="treasures_count"
+      type="button">
+      💎 بیشترین گنج کلی
+    </button>
+  </div>
+
   <div id="leaderboard" class="leaderboard"></div>
 </section>
+
 
 <!-- SHOP -->
 <section id="shopPage" class="page">
@@ -258,18 +339,147 @@
 <section id="accountPage" class="page">
   <div class="page-title">
     <h1>👤 حساب من</h1>
+    <p>اطلاعات ورود و حساب کاربری‌ات را مدیریت کن.</p>
   </div>
 
-  <div class="panel">
-    <label>یوزرنیم</label>
+  <div class="panel account-section">
+    <div class="account-section-head">
+      <div>
+        <h2>👤 اطلاعات حساب</h2>
+        <small>
+          تغییر اطلاعات حساس با تأیید رمز عبور انجام می‌شود.
+        </small>
+      </div>
+    </div>
+
+    <label>یوزرنیم فعلی</label>
     <input id="accountUsername" disabled>
 
-    <label>ایمیل</label>
+    <label>یوزرنیم جدید</label>
+    <input
+      id="newUsername"
+      maxlength="24"
+      placeholder="یوزرنیم جدید">
+
+    <div id="usernamePasswordBox" class="account-security-box">
+      <label>رمز عبور برای تأیید</label>
+      <input
+        id="usernameCurrentPassword"
+        type="password"
+        autocomplete="current-password"
+        placeholder="رمز فعلی">
+    </div>
+
+    <button id="saveUsernameBtn" class="secondary">
+      💾 ذخیره یوزرنیم
+    </button>
+  </div>
+
+
+  <div class="panel account-section">
+    <h2>📱 شماره موبایل</h2>
+
+    <label>شماره فعلی</label>
+    <input id="accountPhone" disabled>
+
+    <label>شماره جدید</label>
+    <input
+      id="newPhone"
+      type="tel"
+      inputmode="tel"
+      autocomplete="tel"
+      placeholder="مثلاً 09123456789">
+
+    <div id="phonePasswordBox" class="account-security-box">
+      <label>رمز عبور برای تأیید</label>
+      <input
+        id="phoneCurrentPassword"
+        type="password"
+        autocomplete="current-password"
+        placeholder="رمز فعلی">
+    </div>
+
+    <button id="savePhoneBtn" class="secondary">
+      📱 ذخیره شماره
+    </button>
+
+    <small>
+      شماره فقط برای شناسایی حساب و ورود با شماره ذخیره می‌شود؛
+      این بخش SMS ارسال نمی‌کند.
+    </small>
+  </div>
+
+
+  <div class="panel account-section">
+    <h2>📧 ایمیل</h2>
+
+    <label>ایمیل فعلی</label>
     <input id="accountEmail" disabled>
 
-    <button id="changePasswordBtn" class="secondary">🔑 تغییر رمز عبور</button>
+    <label>ایمیل جدید</label>
+    <input
+      id="newEmail"
+      type="email"
+      autocomplete="email"
+      placeholder="example@gmail.com">
+
+    <div id="emailPasswordBox" class="account-security-box">
+      <label>رمز عبور برای تأیید</label>
+      <input
+        id="emailCurrentPassword"
+        type="password"
+        autocomplete="current-password"
+        placeholder="رمز فعلی">
+    </div>
+
+    <button id="saveEmailBtn" class="secondary">
+      📧 تغییر / اضافه کردن ایمیل
+    </button>
+
+    <small>
+      بعد از ثبت ایمیل، پیام تأیید به همان ایمیل ارسال می‌شود.
+    </small>
   </div>
+
+
+  <div class="panel account-section">
+    <h2>🔐 رمز عبور</h2>
+
+    <div id="passwordCurrentBox">
+      <label>رمز عبور قبلی</label>
+      <input
+        id="accountCurrentPassword"
+        type="password"
+        autocomplete="current-password"
+        placeholder="رمز فعلی">
+    </div>
+
+    <label>رمز عبور جدید</label>
+    <input
+      id="accountNewPassword"
+      type="password"
+      autocomplete="new-password"
+      placeholder="رمز جدید">
+
+    <label>تکرار رمز عبور جدید</label>
+    <input
+      id="accountNewPassword2"
+      type="password"
+      autocomplete="new-password"
+      placeholder="تکرار رمز جدید">
+
+    <button id="saveAccountPasswordBtn" class="primary">
+      🔑 ذخیره رمز عبور
+    </button>
+
+    <small id="passwordHelp">
+      برای تغییر رمز، رمز قبلی لازم است.
+    </small>
+  </div>
+
+  <div id="accountStatus" class="status"></div>
 </section>
+
 
 <!-- RESET -->
 <section id="resetPage" class="page">
