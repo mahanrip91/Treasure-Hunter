@@ -156,61 +156,125 @@ async function loadProfile(){
 
 
 async function saveLocationToSupabase(lat,lon,accuracy,timestamp){
-  if(!session || locationWriteInFlight)return;
+
+  if(!session?.user?.id){
+    console.warn(
+      "[LOCATION] SKIP: no authenticated user"
+    );
+    return false;
+  }
+
+  if(locationWriteInFlight){
+    return false;
+  }
 
   const now=Date.now();
 
-  // حداکثر هر ۵ ثانیه یک location ارسال شود
-  if(now-lastLocationSentAt<5000)return;
+  if(now-lastLocationSentAt<5000){
+    return false;
+  }
+
+  const nLat=Number(lat);
+  const nLon=Number(lon);
+  const nAccuracy=Number(accuracy||0);
+  const nTimestamp=Number(timestamp||Date.now());
+
+  if(
+    !Number.isFinite(nLat) ||
+    !Number.isFinite(nLon)
+  ){
+    console.warn(
+      "[LOCATION] SKIP: invalid coordinates",
+      {lat,lon,accuracy,timestamp}
+    );
+    return false;
+  }
+
+  if(
+    nLat < -90 ||
+    nLat > 90 ||
+    nLon < -180 ||
+    nLon > 180
+  ){
+    console.warn(
+      "[LOCATION] SKIP: coordinates out of range",
+      {nLat,nLon}
+    );
+    return false;
+  }
 
   locationWriteInFlight=true;
-  lastLocationSentAt=now;
 
   try{
+
     const userId=session.user.id;
 
-    // username را از profile فعلی می‌گیریم
     const username=
       profile?.username ||
       session.user.user_metadata?.username ||
       "Unknown";
 
-    /*
-     * اول location جدید را ثبت می‌کنیم.
-     * این باعث می‌شود Backend هیچ‌وقت بدون location نماند.
-     */
-    const {error:insertError}=await db
-      .from("locations")
-      .insert({
-        user_id:userId,
-        username:username,
-        latitude:Number(lat),
-        longitude:Number(lon),
-        accuracy:Number(accuracy||0),
-        location_timestamp:Number(timestamp||Date.now())
-      });
+    const payload={
+      user_id:userId,
+      username:username,
+      latitude:nLat,
+      longitude:nLon,
+      accuracy:nAccuracy,
+      location_timestamp:nTimestamp
+    };
 
-    if(insertError){
-      console.error("[LOCATION] INSERT ERROR:",insertError);
-      return;
+    console.log(
+      "[LOCATION] INSERT:",
+      payload
+    );
+
+    const {error}=await db
+      .from("locations")
+      .insert(payload);
+
+    if(error){
+
+      console.error(
+        "[LOCATION] INSERT ERROR:",
+        {
+          code:error.code,
+          message:error.message,
+          details:error.details,
+          hint:error.hint
+        }
+      );
+
+      return false;
     }
+
+    lastLocationSentAt=now;
 
     console.log(
       "[LOCATION] SENT:",
       username,
-      Number(lat).toFixed(7),
-      Number(lon).toFixed(7),
+      nLat.toFixed(7),
+      nLon.toFixed(7),
       "accuracy:",
-      Number(accuracy||0).toFixed(1)
+      nAccuracy.toFixed(1)
     );
 
+    return true;
+
   }catch(err){
-    console.error("[LOCATION] ERROR:",err);
+
+    console.error(
+      "[LOCATION] EXCEPTION:",
+      err
+    );
+
+    return false;
+
   }finally{
+
     locationWriteInFlight=false;
+
   }
 }
-
 
 async function getCurrentPositionAsync(){
   if(!navigator.geolocation){
@@ -737,7 +801,7 @@ function startTracking(){
        * هر ۵ ثانیه آخرین موقعیت معتبر کاربر
        * برای Backend داخل جدول locations ثبت می‌شود.
        */
-      saveLocationToSupabase(
+      await saveLocationToSupabase(
         lat,
         lon,
         accuracy,
