@@ -135,6 +135,7 @@
     <h2>🧭 آماده‌ای؟</h2>
     <p>اطرافت پر از گنج‌های مخفی شده. اولین قدم فقط یک کلیکه.</p>
     <button id="startAdventure" class="primary huge">🔥 شروع شکار</button>
+    <button id="continueAdventure" class="primary huge hidden">🧭 ادامه پیدا کردن گنج</button>
   </div>
 
   <div class="panel">
@@ -169,7 +170,15 @@
     <p id="targetHint">قطب‌نما کمی اختلال دارد... با آزمون و خطا مسیرت را پیدا کن.</p>
   </div>
 
-  <button id="scanBtn" class="primary huge">📡 شناسایی دوباره</button>
+  <button id="resetHuntBtn"
+          class="danger huge"
+          type="button">
+      🗑️ پاک کردن مکان فعلی
+    </button>
+
+    <button id="scanBtn" class="primary huge">
+      📡 شناسایی دوباره
+    </button>
 
   <div id="gameStatus" class="status"></div>
 

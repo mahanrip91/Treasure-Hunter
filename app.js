@@ -116,7 +116,8 @@ async function loadProfile(){
           distance_m:0,
           treasures_count:0,
           total_earned:0,
-          theme:"dark"
+          theme:"dark",
+          hunting_active:false
         })
         .select("*")
         .single();
@@ -147,8 +148,102 @@ async function loadProfile(){
   }
 }
 
+
+async function getCurrentPositionAsync(){
+  if(!navigator.geolocation){
+    throw new Error("Geolocation is not supported");
+  }
+
+  return new Promise((resolve,reject)=>{
+    navigator.geolocation.getCurrentPosition(
+      resolve,
+      reject,
+      {
+        enableHighAccuracy:true,
+        timeout:15000,
+        maximumAge:0
+      }
+    );
+  });
+}
+
+async function setHuntingActive(active){
+  if(!session)return false;
+
+  const {data,error}=await db
+    .from("profiles")
+    .update({hunting_active:!!active})
+    .eq("id",session.user.id)
+    .select("hunting_active")
+    .maybeSingle();
+
+  if(error){
+    console.error("HUNTING STATE ERROR:",error);
+    toast("خطا در تغییر وضعیت شکار");
+    return false;
+  }
+
+  if(profile)profile.hunting_active=!!active;
+  updateUI();
+  return true;
+}
+
+async function resetCurrentHunt(){
+  if(!session)return;
+
+  const ok=confirm(
+    "مطمئنی مکان فعلی پاک شه؟\n\n"+
+    "تمام گنج‌های منطقه فعلی و موقعیت فعلی پاک می‌شوند "+
+    "و شکار با مکان فعلی دوباره شروع می‌شود."
+  );
+
+  if(!ok)return;
+
+  const {error}=await db.rpc("reset_hunt");
+
+  if(error){
+    console.error("RESET HUNT ERROR:",error);
+    toast(
+      "خطا در پاک کردن منطقه: "+
+      (error.message||"Unknown error")
+    );
+    return;
+  }
+
+  target=null;
+  game=null;
+  lastPosition=null;
+
+  if(watchId!==null){
+    navigator.geolocation.clearWatch(watchId);
+    watchId=null;
+  }
+
+  await loadProfile();
+  setPage("dashboard");
+  toast("منطقه قبلی پاک شد. حالا شکار جدید را شروع کن 🧭");
+}
+
+
+function updateHuntButtons(){
+  const start=$("startAdventure");
+  const cont=$("continueAdventure");
+
+  if(!profile)return;
+
+  const active=profile.hunting_active===true;
+
+  if(start)start.classList.toggle("hidden",active);
+  if(cont)cont.classList.toggle("hidden",!active);
+
+  const reset=$("resetHuntBtn");
+  if(reset)reset.classList.toggle("hidden",!active);
+}
+
 function updateUI(){
   if(!profile)return;
+
+  updateHuntButtons();
 
   setText("welcomeName",profile.username);
   setText("drawerUsername",profile.username);
@@ -310,85 +405,65 @@ async function recovery(){
 async function createGame(){
   if(!session)return;
 
-  if(!navigator.geolocation){
-    toast("مرورگرت موقعیت مکانی را پشتیبانی نمی‌کند.");
-    return;
-  }
+  try{
+    toast("در حال پیدا کردن منطقه شکار...");
 
-  toast("در حال پیدا کردن منطقه شکار...");
+    const pos=await getCurrentPositionAsync();
+    const lat=pos.coords.latitude;
+    const lon=pos.coords.longitude;
 
-  navigator.geolocation.getCurrentPosition(
-    async pos=>{
-      const lat=pos.coords.latitude;
-      const lon=pos.coords.longitude;
+    /*
+     * شروع شکار از RPC انجام می‌شود تا منطق سمت DB
+     * و وضعیت hunting_active همزمان ثبت شوند.
+     */
+    const {data,error}=await db.rpc("start_hunt",{
+      p_lat:lat,
+      p_lon:lon
+    });
 
-      const {data:old}=await db
+    if(error){
+      console.error("START HUNT ERROR:",error);
+      toast("ساخت منطقه شکار ناموفق بود: "+(error.message||""));
+      return;
+    }
+
+    game=Array.isArray(data) ? data[0] : data;
+
+    if(!game){
+      /*
+       * اگر RPC خروجی نداشت، state فعلی را بخوان.
+       */
+      const {data:state,error:stateError}=await db
         .from("game_state")
         .select("*")
         .eq("user_id",session.user.id)
         .maybeSingle();
 
-      if(old){
-        game=old;
-      }else{
-        const seed=Math.floor(Math.random()*2147483647);
-
-        const {data,error}=await db
-          .from("game_state")
-          .insert({
-            user_id:session.user.id,
-            center_lat:lat,
-            center_lon:lon,
-            cashout_radius_m:250,
-            seed
-          })
-          .select()
-          .single();
-
-        if(error){
-          console.error(error);
-          return toast("ساخت منطقه شکار ناموفق بود.");
-        }
-
-        game=data;
-
-        const treasures=[];
-
-        for(let i=1;i<=8;i++){
-          const x=randomAround(lat,lon,80+i*25,450+i*35);
-
-          treasures.push({
-            user_id:session.user.id,
-            sequence:i,
-            latitude:x.lat,
-            longitude:x.lon,
-            radius_m:38,
-            reward:50+(i*25)
-          });
-        }
-
-        const {error:te}=await db.from("treasures").insert(treasures);
-
-        if(te){
-          console.error(te);
-          return toast("ساخت گنج‌ها ناموفق بود.");
-        }
+      if(stateError){
+        console.error(stateError);
+        toast("منطقه شکار ساخته نشد.");
+        return;
       }
 
-      startTracking();
-      await loadNextTreasure();
-      setPage("game");
-    },
-    err=>{
-      console.error(err);
-      toast("برای شروع شکار اجازه موقعیت مکانی را بده.");
-    },
-    {
-      enableHighAccuracy:true,
-      timeout:15000,
-      maximumAge:0
+      game=state;
     }
-  );
+
+    await setHuntingActive(true);
+
+    startTracking();
+    await loadNextTreasure();
+
+    setPage("game");
+
+    toast("شکار شروع شد 🔥");
+
+  }catch(err){
+    console.error("CREATE GAME ERROR:",err);
+    toast(
+      "شروع شکار ناموفق بود: "+
+      (err.message||"خطای ناشناخته")
+    );
+  }
 }
 
 function startTracking(){
@@ -765,3 +840,28 @@ db.auth.onAuthStateChange(async(event,newSession)=>{
     setPage("reset");
   }
 })();
+
+
+document.addEventListener("DOMContentLoaded",()=>{
+  const start=$("startAdventure");
+  const cont=$("continueAdventure");
+  const reset=$("resetHuntBtn");
+
+  if(start){
+    start.addEventListener("click",createGame);
+  }
+
+  if(cont){
+    cont.addEventListener("click",()=>{
+      if(profile?.hunting_active){
+        setPage("game");
+      }else{
+        createGame();
+      }
+    });
+  }
+
+  if(reset){
+    reset.addEventListener("click",resetCurrentHunt);
+  }
+});
