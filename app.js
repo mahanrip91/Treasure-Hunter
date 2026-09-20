@@ -2946,3 +2946,931 @@ document.addEventListener("DOMContentLoaded",()=>{
   );
 
 })();
+
+
+
+
+/* ============================================================
+   TREASURE_HUNTER_AUTH_FINAL_FIX_V2
+   ============================================================ */
+
+(function(){
+
+  "use strict";
+
+  function accountStatus(text){
+    const x=document.getElementById("accountStatus");
+    if(x)x.textContent=text||"";
+  }
+
+  function gateStatus(text){
+    const x=document.getElementById("usernameGateStatus");
+    if(x)x.textContent=text||"";
+  }
+
+  function gateValidUsername(value){
+    return /^[A-Za-z0-9_]{3,24}$/.test(
+      String(value||"").trim()
+    );
+  }
+
+  function hasPassword(){
+    try{
+      return !!session?.user?.identities?.some(
+        x=>x.provider==="email"
+      );
+    }catch(_){
+      return true;
+    }
+  }
+
+  function normalizePhoneFinal(value){
+
+    let p=String(value||"")
+      .trim()
+      .replace(/[\s()\-]/g,"");
+
+    if(!p)return null;
+
+    if(/^09\d{9}$/.test(p))
+      return "+98"+p.slice(1);
+
+    if(/^9\d{9}$/.test(p))
+      return "+98"+p;
+
+    if(/^00\d+$/.test(p))
+      return "+"+p.slice(2);
+
+    return p;
+  }
+
+  function validPhoneFinal(value){
+    const p=normalizePhoneFinal(value);
+    return !!p && /^\+[1-9]\d{7,14}$/.test(p);
+  }
+
+  async function verifyPasswordFinal(password){
+
+    if(!password)
+      throw new Error(
+        "برای این تغییر باید رمز عبور فعلی را وارد کنی."
+      );
+
+    if(!session?.user)
+      throw new Error(
+        "نشست کاربری پیدا نشد."
+      );
+
+    let email=session.user.email;
+
+    if(!email){
+
+      const r=await db.auth.getUser();
+
+      if(r.error || !r.data?.user?.email)
+        throw new Error(
+          "ایمیل Auth حساب پیدا نشد."
+        );
+
+      email=r.data.user.email;
+    }
+
+    const r=await db.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if(r.error || !r.data?.session)
+      throw new Error(
+        "رمز عبور فعلی اشتباه است."
+      );
+
+    session=r.data.session;
+
+    return true;
+  }
+
+  /* ==========================================================
+     GOOGLE / OAUTH USERNAME GATE
+     ========================================================== */
+
+  async function ensureUsername(){
+
+    if(!session?.user)
+      return false;
+
+    if(!profile)
+      await loadProfile();
+
+    const username=
+      String(profile?.username||"").trim();
+
+    if(gateValidUsername(username))
+      return true;
+
+    const gate=document.getElementById("usernameGate");
+    const input=document.getElementById("usernameGateInput");
+
+    if(!gate)
+      return false;
+
+    document
+      .querySelectorAll(".page")
+      .forEach(x=>x.classList.remove("active"));
+
+    gate.classList.remove("hidden");
+
+    if(input){
+      input.value="";
+      setTimeout(()=>input.focus(),100);
+    }
+
+    return false;
+  }
+
+  async function finishUsername(){
+
+    if(!session?.user)
+      return;
+
+    const input=document.getElementById(
+      "usernameGateInput"
+    );
+
+    const username=
+      String(input?.value||"").trim();
+
+    if(!gateValidUsername(username)){
+      gateStatus(
+        "یوزرنیم باید ۳ تا ۲۴ کاراکتر و فقط شامل حروف انگلیسی، عدد یا _ باشد."
+      );
+      return;
+    }
+
+    const button=document.getElementById(
+      "usernameGateBtn"
+    );
+
+    if(button){
+      button.disabled=true;
+      button.textContent="در حال ذخیره...";
+    }
+
+    try{
+
+      const {error}=await db
+        .from("profiles")
+        .update({
+          username,
+          updated_at:new Date().toISOString()
+        })
+        .eq("id",session.user.id);
+
+      if(error){
+
+        if(error.code==="23505"){
+          throw new Error(
+            "این یوزرنیم قبلاً استفاده شده."
+          );
+        }
+
+        throw error;
+      }
+
+      profile.username=username;
+
+      if(typeof updateUI==="function")
+        updateUI();
+
+      const gate=document.getElementById(
+        "usernameGate"
+      );
+
+      if(gate)
+        gate.classList.add("hidden");
+
+      setPage("dashboard");
+
+      toast("یوزرنیم ثبت شد؛ خوش اومدی 🚀");
+
+    }catch(error){
+
+      console.error(
+        "[USERNAME GATE]",
+        error
+      );
+
+      gateStatus(
+        error.message ||
+        "ذخیره یوزرنیم ناموفق بود."
+      );
+
+    }finally{
+
+      if(button){
+        button.disabled=false;
+        button.textContent=
+          "ادامه و ورود به Treasure Hunter 🚀";
+      }
+    }
+  }
+
+  /* ==========================================================
+     DYNAMIC ACCOUNT OPTIONS
+     ========================================================== */
+
+  function renderAccountOptions(){
+
+    const box=document.getElementById(
+      "accountOptions"
+    );
+
+    if(!box || !profile)
+      return;
+
+    const hasUsername=
+      !!String(profile.username||"").trim();
+
+    const hasPhone=
+      !!String(profile.phone||"").trim();
+
+    const hasEmail=
+      !!String(profile.email||"").trim() &&
+      !String(profile.email).includes(
+        "@username.treasure-hunter.invalid"
+      );
+
+    const passwordExists=hasPassword();
+
+    box.innerHTML=`
+
+      <button
+        class="account-option"
+        data-account-action="username">
+
+        <span>👤</span>
+
+        <div>
+          <b>
+            ${hasUsername
+              ?"تغییر یوزرنیم"
+              :"افزودن یوزرنیم"}
+          </b>
+
+          <small>
+            ${hasUsername
+              ?escapeHtmlFinal(profile.username)
+              :"برای ورود و شناسایی حساب"}
+          </small>
+        </div>
+
+        <strong>›</strong>
+      </button>
+
+
+      <button
+        class="account-option"
+        data-account-action="phone">
+
+        <span>📱</span>
+
+        <div>
+          <b>
+            ${hasPhone
+              ?"تغییر شماره موبایل"
+              :"افزودن شماره موبایل"}
+          </b>
+
+          <small>
+            ${hasPhone
+              ?escapeHtmlFinal(profile.phone)
+              :"برای ورود با شماره"}
+          </small>
+        </div>
+
+        <strong>›</strong>
+      </button>
+
+
+      <button
+        class="account-option"
+        data-account-action="email">
+
+        <span>📧</span>
+
+        <div>
+          <b>
+            ${hasEmail
+              ?"تغییر ایمیل"
+              :"افزودن ایمیل"}
+          </b>
+
+          <small>
+            ${hasEmail
+              ?escapeHtmlFinal(profile.email)
+              :"برای بازیابی و تأیید حساب"}
+          </small>
+        </div>
+
+        <strong>›</strong>
+      </button>
+
+
+      <button
+        class="account-option"
+        data-account-action="password">
+
+        <span>🔐</span>
+
+        <div>
+          <b>
+            ${passwordExists
+              ?"تغییر رمز عبور"
+              :"افزودن رمز عبور"}
+          </b>
+
+          <small>
+            ${passwordExists
+              ?"برای تغییر، رمز فعلی لازم است"
+              :"این حساب هنوز رمز ندارد"}
+          </small>
+        </div>
+
+        <strong>›</strong>
+      </button>
+    `;
+
+    box
+      .querySelectorAll("[data-account-action]")
+      .forEach(btn=>{
+
+        btn.onclick=()=>{
+          openAccountAction(
+            btn.dataset.accountAction
+          );
+        };
+      });
+  }
+
+  function escapeHtmlFinal(value){
+
+    return String(value||"")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function closeAccountAction(){
+
+    const box=document.getElementById(
+      "accountActionBox"
+    );
+
+    if(box){
+      box.classList.add("hidden");
+      box.innerHTML="";
+    }
+
+    accountStatus("");
+  }
+
+  function openAccountAction(type){
+
+    const box=document.getElementById(
+      "accountActionBox"
+    );
+
+    if(!box)return;
+
+    const hasUsername=
+      !!String(profile?.username||"").trim();
+
+    const hasPhone=
+      !!String(profile?.phone||"").trim();
+
+    const hasEmail=
+      !!String(profile?.email||"").trim() &&
+      !String(profile?.email).includes(
+        "@username.treasure-hunter.invalid"
+      );
+
+    const passwordExists=hasPassword();
+
+    let html="";
+
+    if(type==="username"){
+
+      html=`
+        <h3>
+          ${hasUsername
+            ?"👤 تغییر یوزرنیم"
+            :"👤 افزودن یوزرنیم"}
+        </h3>
+
+        <input
+          id="accountActionUsername"
+          maxlength="24"
+          placeholder="یوزرنیم جدید">
+
+        ${
+          hasUsername
+          ?`
+            <input
+              id="accountActionPassword"
+              type="password"
+              placeholder="رمز عبور فعلی">
+          `
+          :""
+        }
+
+        <button
+          id="accountActionSave"
+          class="primary">
+          ذخیره یوزرنیم
+        </button>
+
+        <button
+          id="accountActionCancel"
+          class="text-btn">
+          انصراف
+        </button>
+      `;
+
+    }else if(type==="phone"){
+
+      html=`
+        <h3>
+          ${hasPhone
+            ?"📱 تغییر شماره موبایل"
+            :"📱 افزودن شماره موبایل"}
+        </h3>
+
+        <input
+          id="accountActionPhone"
+          type="tel"
+          inputmode="tel"
+          placeholder="09123456789">
+
+        ${
+          hasPhone
+          ?`
+            <input
+              id="accountActionPassword"
+              type="password"
+              placeholder="رمز عبور فعلی">
+          `
+          :""
+        }
+
+        <button
+          id="accountActionSave"
+          class="primary">
+          ${hasPhone
+            ?"تغییر شماره"
+            :"افزودن شماره"}
+        </button>
+
+        <button
+          id="accountActionCancel"
+          class="text-btn">
+          انصراف
+        </button>
+
+        <small>
+          ${hasPhone
+            ?"برای تغییر شماره، رمز فعلی لازم است."
+            :"برای افزودن شماره، رمز لازم نیست."}
+        </small>
+      `;
+
+    }else if(type==="email"){
+
+      html=`
+        <h3>
+          ${hasEmail
+            ?"📧 تغییر ایمیل"
+            :"📧 افزودن ایمیل"}
+        </h3>
+
+        <input
+          id="accountActionEmail"
+          type="email"
+          placeholder="example@gmail.com">
+
+        ${
+          hasEmail
+          ?`
+            <input
+              id="accountActionPassword"
+              type="password"
+              placeholder="رمز عبور فعلی">
+          `
+          :""
+        }
+
+        <button
+          id="accountActionSave"
+          class="primary">
+          ${hasEmail
+            ?"تغییر ایمیل"
+            :"افزودن ایمیل"}
+        </button>
+
+        <button
+          id="accountActionCancel"
+          class="text-btn">
+          انصراف
+        </button>
+
+        <small>
+          ${hasEmail
+            ?"برای تغییر ایمیل، رمز فعلی لازم است؛ سپس ایمیل جدید باید تأیید شود."
+            :"برای افزودن ایمیل، رمز لازم نیست؛ ایمیل باید تأیید شود."}
+          <br>
+          ایمیل تأیید با نام <b>Treasure Hunter</b> ارسال می‌شود.
+        </small>
+      `;
+
+    }else if(type==="password"){
+
+      html=`
+        <h3>
+          ${passwordExists
+            ?"🔐 تغییر رمز عبور"
+            :"🔐 افزودن رمز عبور"}
+        </h3>
+
+        ${
+          passwordExists
+          ?`
+            <input
+              id="accountActionPassword"
+              type="password"
+              placeholder="رمز عبور فعلی">
+          `
+          :""
+        }
+
+        <input
+          id="accountActionNewPassword"
+          type="password"
+          placeholder="رمز عبور جدید">
+
+        <input
+          id="accountActionNewPassword2"
+          type="password"
+          placeholder="تکرار رمز عبور جدید">
+
+        <button
+          id="accountActionSave"
+          class="primary">
+          ${passwordExists
+            ?"تغییر رمز"
+            :"افزودن رمز"}
+        </button>
+
+        <button
+          id="accountActionCancel"
+          class="text-btn">
+          انصراف
+        </button>
+
+        <small>
+          ${
+            passwordExists
+            ?"برای تغییر رمز، رمز فعلی الزامی است."
+            :"این حساب هنوز رمز ندارد؛ فقط رمز جدید و تکرارش لازم است."
+          }
+        </small>
+      `;
+    }
+
+    box.innerHTML=html;
+    box.classList.remove("hidden");
+
+    const save=box.querySelector(
+      "#accountActionSave"
+    );
+
+    const cancel=box.querySelector(
+      "#accountActionCancel"
+    );
+
+    if(cancel)
+      cancel.onclick=closeAccountAction;
+
+    if(save)
+      save.onclick=async()=>{
+
+        save.disabled=true;
+
+        try{
+
+          if(type==="username"){
+
+            const value=
+              box.querySelector(
+                "#accountActionUsername"
+              ).value.trim();
+
+            if(!gateValidUsername(value))
+              throw new Error(
+                "یوزرنیم باید ۳ تا ۲۴ کاراکتر و فقط شامل حروف انگلیسی، عدد یا _ باشد."
+              );
+
+            if(hasUsername){
+
+              await verifyPasswordFinal(
+                box.querySelector(
+                  "#accountActionPassword"
+                ).value
+              );
+            }
+
+            const {error}=await db
+              .from("profiles")
+              .update({
+                username:value,
+                updated_at:new Date().toISOString()
+              })
+              .eq("id",session.user.id);
+
+            if(error){
+
+              if(error.code==="23505")
+                throw new Error(
+                  "این یوزرنیم قبلاً استفاده شده."
+                );
+
+              throw error;
+            }
+
+            profile.username=value;
+
+            closeAccountAction();
+            renderAccountOptions();
+            updateUI();
+
+            accountStatus(
+              "یوزرنیم با موفقیت ذخیره شد ✅"
+            );
+
+          }else if(type==="phone"){
+
+            const raw=
+              box.querySelector(
+                "#accountActionPhone"
+              ).value.trim();
+
+            if(!validPhoneFinal(raw))
+              throw new Error(
+                "شماره موبایل معتبر نیست."
+              );
+
+            if(hasPhone){
+
+              await verifyPasswordFinal(
+                box.querySelector(
+                  "#accountActionPassword"
+                ).value
+              );
+            }
+
+            const phone=
+              normalizePhoneFinal(raw);
+
+            const {error}=await db
+              .from("profiles")
+              .update({
+                phone,
+                updated_at:new Date().toISOString()
+              })
+              .eq("id",session.user.id);
+
+            if(error){
+
+              if(error.code==="23505")
+                throw new Error(
+                  "این شماره قبلاً به یک حساب دیگر وصل شده."
+                );
+
+              throw error;
+            }
+
+            profile.phone=phone;
+
+            closeAccountAction();
+            renderAccountOptions();
+
+            accountStatus(
+              "شماره موبایل ذخیره شد ✅"
+            );
+
+          }else if(type==="email"){
+
+            const email=
+              box.querySelector(
+                "#accountActionEmail"
+              ).value.trim().toLowerCase();
+
+            if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+              throw new Error(
+                "ایمیل معتبر نیست."
+              );
+
+            if(hasEmail){
+
+              await verifyPasswordFinal(
+                box.querySelector(
+                  "#accountActionPassword"
+                ).value
+              );
+            }
+
+            const {error}=await db.auth.updateUser({
+              email
+            });
+
+            if(error)
+              throw error;
+
+            /*
+             * عمداً profiles.email را همینجا تغییر نمی‌دهیم.
+             * بعد از تأیید ایمیل توسط Auth trigger آن را sync می‌کند.
+             */
+
+            closeAccountAction();
+
+            accountStatus(
+              "ایمیل تأیید برایت ارسال شد 📧\n"+
+              "بعد از تأیید، ایمیل جدید به‌صورت خودکار روی حساب ثبت می‌شود."
+            );
+
+          }else if(type==="password"){
+
+            const newPassword=
+              box.querySelector(
+                "#accountActionNewPassword"
+              ).value;
+
+            const newPassword2=
+              box.querySelector(
+                "#accountActionNewPassword2"
+              ).value;
+
+            if(newPassword.length<6)
+              throw new Error(
+                "رمز جدید باید حداقل ۶ کاراکتر باشد."
+              );
+
+            if(newPassword!==newPassword2)
+              throw new Error(
+                "تکرار رمز عبور یکی نیست."
+              );
+
+            if(passwordExists){
+
+              await verifyPasswordFinal(
+                box.querySelector(
+                  "#accountActionPassword"
+                ).value
+              );
+            }
+
+            const {error}=await db.auth.updateUser({
+              password:newPassword
+            });
+
+            if(error)
+              throw error;
+
+            closeAccountAction();
+
+            accountStatus(
+              passwordExists
+                ?"رمز عبور تغییر کرد ✅"
+                :"رمز عبور به حساب اضافه شد ✅"
+            );
+          }
+
+          renderAccountOptions();
+
+        }catch(error){
+
+          console.error(
+            "[ACCOUNT FINAL FIX]",
+            error
+          );
+
+          accountStatus(
+            error.message ||
+            "عملیات ناموفق بود."
+          );
+
+        }finally{
+          save.disabled=false;
+        }
+      };
+  }
+
+  /* ==========================================================
+     SHOW APP MUST REQUIRE USERNAME
+     ========================================================== */
+
+  const originalShowApp=window.showApp;
+
+  window.showApp=async function(){
+
+    const ok=await ensureUsername();
+
+    if(!ok)
+      return false;
+
+    if(typeof originalShowApp==="function"){
+      originalShowApp();
+    }else{
+      setPage("dashboard");
+    }
+
+    return true;
+  };
+
+  /* ==========================================================
+     AUTH STATE -> USERNAME IS REQUIRED
+     ========================================================== */
+
+  if(!document.getElementById("usernameGateBtn")){
+
+    setTimeout(()=>{
+
+      const btn=document.getElementById(
+        "usernameGateBtn"
+      );
+
+      if(btn)
+        btn.onclick=finishUsername;
+
+    },0);
+  }
+
+  /* ==========================================================
+     ACCOUNT PAGE OPEN
+     ========================================================== */
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    ()=>{
+
+      const gateBtn=document.getElementById(
+        "usernameGateBtn"
+      );
+
+      if(gateBtn)
+        gateBtn.onclick=finishUsername;
+
+      renderAccountOptions();
+
+      document
+        .querySelectorAll(
+          '[data-page="account"]'
+        )
+        .forEach(btn=>{
+          btn.addEventListener(
+            "click",
+            ()=>{
+              setTimeout(
+                renderAccountOptions,
+                50
+              );
+            }
+          );
+        });
+
+    },
+    {once:true}
+  );
+
+  /* ==========================================================
+     PATCH updateUI
+     ========================================================== */
+
+  const oldUpdateUI=window.updateUI;
+
+  window.updateUI=function(){
+
+    if(typeof oldUpdateUI==="function")
+      oldUpdateUI();
+
+    try{
+      renderAccountOptions();
+    }catch(error){
+      console.warn(
+        "[ACCOUNT OPTIONS]",
+        error
+      );
+    }
+  };
+
+})();

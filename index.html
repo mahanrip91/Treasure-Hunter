@@ -175,6 +175,37 @@
   </div>
 
   <div id="authStatus" class="status"></div>
+<div id="usernameGate"
+     class="panel hidden">
+
+  <h2>👤 یک مرحله مونده!</h2>
+
+  <p>
+    برای ورود به Treasure Hunter باید یک یوزرنیم برای حسابت انتخاب کنی.
+  </p>
+
+  <label>یوزرنیم</label>
+
+  <input
+    id="usernameGateInput"
+    maxlength="24"
+    autocomplete="username"
+    placeholder="مثلاً Mahan_RIP">
+
+  <small>
+    ۳ تا ۲۴ کاراکتر؛ فقط حروف انگلیسی، عدد و _
+  </small>
+
+  <button
+    id="usernameGateBtn"
+    class="primary">
+    ادامه و ورود به Treasure Hunter 🚀
+  </button>
+
+  <div id="usernameGateStatus"
+       class="status"></div>
+</div>
+
 </section>
 
 <!-- DASHBOARD -->
@@ -339,147 +370,27 @@
 <section id="accountPage" class="page">
   <div class="page-title">
     <h1>👤 حساب من</h1>
-    <p>اطلاعات ورود و حساب کاربری‌ات را مدیریت کن.</p>
+    <p>اطلاعات حساب را از اینجا مدیریت کن.</p>
   </div>
 
   <div class="panel account-section">
     <div class="account-section-head">
       <div>
-        <h2>👤 اطلاعات حساب</h2>
+        <h2>🔐 مدیریت اطلاعات حساب</h2>
         <small>
-          تغییر اطلاعات حساس با تأیید رمز عبور انجام می‌شود.
+          گزینه‌ها بر اساس اطلاعات فعلی حسابت نمایش داده می‌شوند.
         </small>
       </div>
     </div>
 
-    <label>یوزرنیم فعلی</label>
-    <input id="accountUsername" disabled>
+    <div id="accountOptions" class="account-options"></div>
 
-    <label>یوزرنیم جدید</label>
-    <input
-      id="newUsername"
-      maxlength="24"
-      placeholder="یوزرنیم جدید">
+    <div id="accountActionBox"
+         class="account-action-box hidden"></div>
 
-    <div id="usernamePasswordBox" class="account-security-box">
-      <label>رمز عبور برای تأیید</label>
-      <input
-        id="usernameCurrentPassword"
-        type="password"
-        autocomplete="current-password"
-        placeholder="رمز فعلی">
-    </div>
-
-    <button id="saveUsernameBtn" class="secondary">
-      💾 ذخیره یوزرنیم
-    </button>
+    <div id="accountStatus" class="status"></div>
   </div>
-
-
-  <div class="panel account-section">
-    <h2>📱 شماره موبایل</h2>
-
-    <label>شماره فعلی</label>
-    <input id="accountPhone" disabled>
-
-    <label>شماره جدید</label>
-    <input
-      id="newPhone"
-      type="tel"
-      inputmode="tel"
-      autocomplete="tel"
-      placeholder="مثلاً 09123456789">
-
-    <div id="phonePasswordBox" class="account-security-box">
-      <label>رمز عبور برای تأیید</label>
-      <input
-        id="phoneCurrentPassword"
-        type="password"
-        autocomplete="current-password"
-        placeholder="رمز فعلی">
-    </div>
-
-    <button id="savePhoneBtn" class="secondary">
-      📱 ذخیره شماره
-    </button>
-
-    <small>
-      شماره فقط برای شناسایی حساب و ورود با شماره ذخیره می‌شود؛
-      این بخش SMS ارسال نمی‌کند.
-    </small>
-  </div>
-
-
-  <div class="panel account-section">
-    <h2>📧 ایمیل</h2>
-
-    <label>ایمیل فعلی</label>
-    <input id="accountEmail" disabled>
-
-    <label>ایمیل جدید</label>
-    <input
-      id="newEmail"
-      type="email"
-      autocomplete="email"
-      placeholder="example@gmail.com">
-
-    <div id="emailPasswordBox" class="account-security-box">
-      <label>رمز عبور برای تأیید</label>
-      <input
-        id="emailCurrentPassword"
-        type="password"
-        autocomplete="current-password"
-        placeholder="رمز فعلی">
-    </div>
-
-    <button id="saveEmailBtn" class="secondary">
-      📧 تغییر / اضافه کردن ایمیل
-    </button>
-
-    <small>
-      بعد از ثبت ایمیل، پیام تأیید به همان ایمیل ارسال می‌شود.
-    </small>
-  </div>
-
-
-  <div class="panel account-section">
-    <h2>🔐 رمز عبور</h2>
-
-    <div id="passwordCurrentBox">
-      <label>رمز عبور قبلی</label>
-      <input
-        id="accountCurrentPassword"
-        type="password"
-        autocomplete="current-password"
-        placeholder="رمز فعلی">
-    </div>
-
-    <label>رمز عبور جدید</label>
-    <input
-      id="accountNewPassword"
-      type="password"
-      autocomplete="new-password"
-      placeholder="رمز جدید">
-
-    <label>تکرار رمز عبور جدید</label>
-    <input
-      id="accountNewPassword2"
-      type="password"
-      autocomplete="new-password"
-      placeholder="تکرار رمز جدید">
-
-    <button id="saveAccountPasswordBtn" class="primary">
-      🔑 ذخیره رمز عبور
-    </button>
-
-    <small id="passwordHelp">
-      برای تغییر رمز، رمز قبلی لازم است.
-    </small>
-  </div>
-
-  <div id="accountStatus" class="status"></div>
 </section>
-
 
 <!-- RESET -->
 <section id="resetPage" class="page">
