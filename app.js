@@ -184,10 +184,32 @@ async function login(){
 
   status("در حال ورود...");
 
-  const {data,error}=await db.auth.signInWithPassword({
+  let {data,error}=await db.auth.signInWithPassword({
     email:authEmail(u),
     password:p
   });
+
+  // اگر کاربر با ایمیل واقعی ثبت‌نام کرده باشد،
+  // authEmail جواب نمی‌دهد؛ از RPC برای پیدا کردن ایمیل Auth استفاده می‌کنیم.
+  if(error){
+    const lookup=await db.rpc("get_auth_email_by_username",{p_username:u});
+
+    if(!lookup.error && lookup.data){
+      const realEmail=Array.isArray(lookup.data)
+        ? lookup.data[0]
+        : lookup.data;
+
+      if(realEmail){
+        const retry=await db.auth.signInWithPassword({
+          email:realEmail,
+          password:p
+        });
+
+        data=retry.data;
+        error=retry.error;
+      }
+    }
+  }
 
   if(error){
     console.error(error);
@@ -369,11 +391,73 @@ async function loadNextTreasure(){
   target=data;
 
   if(!target){
-    setText("treasureTitle","همه گنج‌ها پیدا شدن! 🏆");
+    setText("treasureTitle","همه گنج‌های این منطقه پیدا شدن! 🏆");
     setText("targetDistance","منطقه پاکسازی شد");
-    setText("targetHint","به‌زودی منطقه جدید باز می‌شود.");
-    $("scanBtn").disabled=true;
-    return;
+    setText("targetHint","در حال آماده‌سازی منطقه بعدی...");
+
+    // راند بعدی را فقط وقتی واقعاً تمام شده بساز
+    if(game){
+      const nextCenter = lastPosition || {
+        latitude: game.center_lat,
+        longitude: game.center_lon
+      };
+
+      const seed=Math.floor(Math.random()*2147483647);
+
+      const {data:newGame,error:gameError}=await db
+        .from("game_state")
+        .insert({
+          user_id:session.user.id,
+          center_lat:nextCenter.latitude,
+          center_lon:nextCenter.longitude,
+          cashout_radius_m:250,
+          seed
+        })
+        .select()
+        .single();
+
+      if(gameError){
+        console.error(gameError);
+        $("scanBtn").disabled=true;
+        return toast("ساخت منطقه بعدی ناموفق بود.");
+      }
+
+      game=newGame;
+
+      const treasures=[];
+
+      for(let i=1;i<=8;i++){
+        const x=randomAround(
+          nextCenter.latitude,
+          nextCenter.longitude,
+          80+i*25,
+          450+i*35
+        );
+
+        treasures.push({
+          user_id:session.user.id,
+          sequence:i,
+          latitude:x.lat,
+          longitude:x.lon,
+          radius_m:38,
+          reward:50+(i*25)
+        });
+      }
+
+      const {error:treasureError}=await db
+        .from("treasures")
+        .insert(treasures);
+
+      if(treasureError){
+        console.error(treasureError);
+        return toast("ساخت گنج‌های منطقه بعدی ناموفق بود.");
+      }
+
+      toast("🗺️ منطقه جدید پیدا شد!");
+
+      // دوباره اولین گنج منطقه جدید را بگیر
+      return loadNextTreasure();
+    }
   }
 
   $("scanBtn").disabled=false;
