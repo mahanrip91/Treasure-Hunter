@@ -616,38 +616,212 @@ async function createGame(){
   }
 }
 
+function restoreLastPosition(){
+  if(lastPosition)return;
+
+  try{
+    const raw=sessionStorage.getItem(
+      "treasureHunterLastPosition"
+    );
+
+    if(!raw)return;
+
+    const saved=JSON.parse(raw);
+
+    if(
+      Number.isFinite(Number(saved.latitude)) &&
+      Number.isFinite(Number(saved.longitude))
+    ){
+      lastPosition={
+        latitude:Number(saved.latitude),
+        longitude:Number(saved.longitude),
+        accuracy:Number(saved.accuracy||50),
+        timestamp:Number(saved.timestamp||Date.now()),
+        _receivedAt:Number(saved._receivedAt||Date.now())
+      };
+
+      console.log("[GPS] restored:",lastPosition);
+    }
+  }catch(err){
+    console.warn("[GPS] restore failed:",err);
+  }
+}
+
+
 function startTracking(){
   if(watchId!==null)return;
+
+  restoreLastPosition();
 
   watchId=navigator.geolocation.watchPosition(
     async pos=>{
       const p=pos.coords;
 
+      const lat=Number(p.latitude);
+      const lon=Number(p.longitude);
+      const accuracy=Number(p.accuracy||999);
+      const now=Date.now();
+
+      if(
+        !Number.isFinite(lat) ||
+        !Number.isFinite(lon)
+      ){
+        return;
+      }
+
+      /*
+       * GPS خیلی بد را قبول نکن.
+       */
+      if(accuracy>100){
+        console.warn(
+          "[GPS] poor accuracy ignored:",
+          accuracy
+        );
+        return;
+      }
+
+      /*
+       * جلوگیری از پرش‌های غیرواقعی GPS.
+       */
       if(lastPosition){
-        const d=haversine(
-          lastPosition.latitude,
-          lastPosition.longitude,
-          p.latitude,
-          p.longitude
+
+        const oldTime=Number(
+          lastPosition._receivedAt ||
+          lastPosition.timestamp ||
+          now
         );
 
-        if(d>2&&d<300){
-          await db.rpc("add_distance",{p_meters:d});
+        const elapsed=Math.max(
+          0.5,
+          (now-oldTime)/1000
+        );
+
+        const jump=haversine(
+          Number(lastPosition.latitude),
+          Number(lastPosition.longitude),
+          lat,
+          lon
+        );
+
+        /*
+         * سقف منطقی جابه‌جایی.
+         * GPS می‌تواند خطا داشته باشد، پس خیلی سخت‌گیر نیستیم.
+         */
+        const maxAllowed=Math.max(
+          80,
+          Math.min(
+            300,
+            elapsed*45 + accuracy*2
+          )
+        );
+
+        if(jump>maxAllowed){
+          console.warn(
+            "[GPS] impossible jump ignored:",
+            Math.round(jump),
+            "m / max",
+            Math.round(maxAllowed),
+            "m"
+          );
+          return;
+        }
+
+        /*
+         * فقط حرکت واقعی را به مسافت اضافه کن.
+         */
+        if(jump>2 && jump<300){
+          try{
+            await db.rpc("add_distance",{
+              p_meters:jump
+            });
+          }catch(err){
+            console.warn(
+              "[GPS] distance update failed:",
+              err
+            );
+          }
         }
       }
 
-      lastPosition=p;
+      lastPosition={
+        latitude:lat,
+        longitude:lon,
+        accuracy:accuracy,
+        timestamp:Number(p.timestamp||now),
+        _receivedAt:now
+      };
 
-      if(target)updateTarget(p.latitude,p.longitude);
+      /*
+       * آخرین موقعیت معتبر را نگه می‌داریم تا وقتی کاربر
+       * از صفحه خارج و دوباره وارد شد، موقعیت یک‌دفعه
+       * از صفر شروع نشود.
+       */
+      try{
+        sessionStorage.setItem(
+          "treasureHunterLastPosition",
+          JSON.stringify(lastPosition)
+        );
+      }catch(_){}
+
+      if(target){
+        updateTarget(lat,lon);
+      }
     },
-    err=>console.error(err),
+
+    err=>{
+      console.warn("[GPS]",err);
+    },
+
     {
       enableHighAccuracy:true,
-      maximumAge:5000,
-      timeout:15000
+      maximumAge:3000,
+      timeout:20000
     }
   );
 }
+
+
+
+async function resumeHunt(){
+  if(!session)return;
+
+  restoreLastPosition();
+
+  if(!profile){
+    await loadProfile();
+  }
+
+  /*
+   * اگر شکار فعال نیست، شروع شکار جدید.
+   */
+  if(!profile?.hunting_active){
+    return createGame();
+  }
+
+  /*
+   * اینجا نباید createGame اجرا شود.
+   * چون createGame یعنی ساخت منطقه جدید.
+   */
+  if(!target){
+    await loadNextTreasure();
+  }
+
+  startTracking();
+
+  setPage("game");
+
+  /*
+   * اگر موقعیت قبلی داریم، همان لحظه UI را آپدیت کن.
+   * لازم نیست منتظر GPS بعدی بمانیم.
+   */
+  if(lastPosition && target){
+    updateTarget(
+      lastPosition.latitude,
+      lastPosition.longitude
+    );
+  }
+}
+
 
 async function loadNextTreasure(){
   const {data,error}=await db
@@ -804,71 +978,434 @@ async function scan(){
   await loadNextTreasure();
 }
 
-async function cashout(){
-  if(!session)
-    return;
-
-  /*
-   * محل فروش را از player_zones می‌خوانیم تا همیشه
-   * دقیقاً همان نقطه ثبت‌شده برای کاربر استفاده شود.
-   */
-  const zone=await loadSaleZone();
-
-  if(!zone){
-    return toast("هنوز محل فروش برای حسابت تعیین نشده.");
+async function getSellableTreasureCount(){
+  if(!session){
+    return {
+      count:0,
+      error:null
+    };
   }
+
+  const {count,error}=await db
+    .from("treasures")
+    .select("id",{
+      count:"exact",
+      head:true
+    })
+    .eq("user_id",session.user.id)
+    .eq("found",true);
+
+  return {
+    count:Number(count||0),
+    error
+  };
+}
+
+
+function renderCashoutPanel(zone,count,distance){
+  const box=$("cashoutMapLinks");
+
+  if(!box)return;
 
   const saleLat=Number(zone.center_latitude);
   const saleLon=Number(zone.center_longitude);
 
-  const position=lastPosition;
-
-  if(!position){
-    return toast("هنوز موقعیتت دریافت نشده.");
-  }
-
-  const d=haversine(
-    position.latitude,
-    position.longitude,
+  const links=buildMapLinks(
     saleLat,
     saleLon
   );
 
-  const exchangeRadius=
-    Number(zone.exchange_radius_m||150);
+  const radius=Number(
+    zone.exchange_radius_m||150
+  );
 
-  if(d>exchangeRadius){
-    return toast(
-      "برای تبدیل گنج باید داخل محدوده فروش باشی. "+
-      `فاصله: ${Math.round(d)} متر`
+  const inside=
+    Number.isFinite(distance) &&
+    distance<=radius;
+
+  let statusHtml="";
+
+  if(count===0){
+
+    statusHtml=`
+      <div class="cashout-count empty">
+        <div class="cashout-count-icon">📦</div>
+        <div>
+          <strong>گنجی برای فروش ندارید</strong>
+          <span>اول چند گنج پیدا کن، بعد برای فروش برگرد.</span>
+        </div>
+      </div>
+    `;
+
+  }else{
+
+    statusHtml=`
+      <div class="cashout-count">
+        <div class="cashout-count-icon">💎</div>
+        <div>
+          <strong>${count.toLocaleString("fa-IR")} گنج برای فروش دارید</strong>
+          <span>
+            ${
+              inside
+                ? "در محدوده فروش هستی و می‌تونی همین الان تبدیلشون کنی."
+                : "برای فروش باید به محل تبدیل برسی."
+            }
+          </span>
+        </div>
+      </div>
+    `;
+  }
+
+  let locationStatus="";
+
+  if(Number.isFinite(distance)){
+
+    if(inside){
+
+      locationStatus=`
+        <div class="cashout-location-ok">
+          🟢 داخل محدوده فروش
+          <span>فاصله: ${Math.round(distance)} متر</span>
+        </div>
+      `;
+
+    }else{
+
+      locationStatus=`
+        <div class="cashout-location-away">
+          🔴 خارج از محدوده فروش
+          <span>
+            فاصله فعلی: ${Math.round(distance)} متر
+            • محدوده تبدیل: ${Math.round(radius)} متر
+          </span>
+        </div>
+      `;
+    }
+  }
+
+  const convertButton =
+    count>0
+      ? `
+        <button
+          id="confirmCashoutBtn"
+          class="cashout-convert-btn"
+          ${inside?"":"disabled"}>
+          🪙 تبدیل ${count.toLocaleString("fa-IR")} گنج به سکه
+        </button>
+      `
+      : `
+        <button
+          class="cashout-convert-btn disabled-looking"
+          disabled>
+          🪙 گنجی برای تبدیل وجود ندارد
+        </button>
+      `;
+
+  box.innerHTML=`
+    <div class="cashout-header">
+      <div>
+        <div class="cashout-map-title">
+          🏪 محل فروش و تبدیل گنج
+        </div>
+        <div class="cashout-subtitle">
+          این محل از منطقه شروع شکار شما تعیین شده است.
+        </div>
+      </div>
+
+      <button
+        id="closeCashoutPanel"
+        class="cashout-close"
+        type="button"
+        aria-label="بستن">
+        ×
+      </button>
+    </div>
+
+    ${statusHtml}
+
+    ${locationStatus}
+
+    <div class="cashout-divider"></div>
+
+    <div class="cashout-map-label">
+      انتخاب نقشه:
+    </div>
+
+    <div class="cashout-map-links">
+      <a
+        class="map-link google-map-link"
+        href="${links.google}"
+        target="_blank"
+        rel="noopener">
+        🗺️ دیدن محل فروش در Google Maps
+      </a>
+
+      <a
+        class="map-link neshan-map-link"
+        href="${links.neshanIntent}">
+        📍 دیدن محل فروش در نشان
+      </a>
+    </div>
+
+    <div class="cashout-coordinates">
+      📍 ${saleLat.toFixed(6)} ، ${saleLon.toFixed(6)}
+    </div>
+
+    <div class="cashout-actions">
+      ${convertButton}
+    </div>
+  `;
+
+  box.classList.remove("hidden");
+
+  const close=$("closeCashoutPanel");
+
+  if(close){
+    close.onclick=()=>{
+      box.classList.add("hidden");
+    };
+  }
+
+  const convert=$("confirmCashoutBtn");
+
+  if(convert){
+    convert.onclick=performCashout;
+  }
+}
+
+
+async function cashout(){
+  if(!session)return;
+
+  const box=$("cashoutMapLinks");
+
+  if(box){
+    box.classList.remove("hidden");
+    box.innerHTML=`
+      <div class="cashout-loading">
+        <div class="cashout-spinner"></div>
+        <span>در حال بررسی گنج‌های قابل فروش...</span>
+      </div>
+    `;
+  }
+
+  let zone=await loadSaleZone();
+
+  /*
+   * اگر کاربر قدیمی باشد و player_zones هنوز نداشته باشد،
+   * از آخرین موقعیت معتبر برای ساخت منطقه استفاده کن.
+   */
+  if(!zone && lastPosition){
+
+    await savePlayerSaleZone(
+      lastPosition.latitude,
+      lastPosition.longitude
+    );
+
+    zone=await loadSaleZone();
+  }
+
+  if(!zone){
+
+    if(box){
+      box.innerHTML=`
+        <div class="cashout-error">
+          ❌ هنوز محل فروش برای این حساب ثبت نشده.
+          <span>یک بار شکار را شروع کن تا محل فروش تعیین شود.</span>
+        </div>
+      `;
+    }
+
+    return;
+  }
+
+  const result=
+    await getSellableTreasureCount();
+
+  if(result.error){
+
+    console.error(
+      "SELLABLE TREASURE COUNT ERROR:",
+      result.error
+    );
+
+    if(box){
+      box.innerHTML=`
+        <div class="cashout-error">
+          ❌ دریافت اطلاعات فروش ناموفق بود.
+          <span>${escapeHtml(
+            result.error.message||"خطای ناشناخته"
+          )}</span>
+        </div>
+      `;
+    }
+
+    return;
+  }
+
+  let distance=NaN;
+
+  if(lastPosition){
+
+    distance=haversine(
+      lastPosition.latitude,
+      lastPosition.longitude,
+      Number(zone.center_latitude),
+      Number(zone.center_longitude)
     );
   }
 
-  const {data,error}=await db.rpc("cashout_treasures");
-
-  if(error){
-    console.error("CASHOUT ERROR:",error);
-    return toast(
-      "تبدیل ناموفق بود: "+
-      (error.message||"خطای ناشناخته")
-    );
-  }
-
-  const row=Array.isArray(data)?data[0]:data;
-
-  if(!row||!Number(row.coins_added)){
-    return toast("فعلاً گنجی برای تبدیل نداری.");
-  }
-
-  await loadProfile();
-
-  showCashoutMapLinks(saleLat,saleLon);
-
-  toast(
-    `🪙 ${Number(row.coins_added).toLocaleString()} سکه گرفتی!`
+  renderCashoutPanel(
+    zone,
+    result.count,
+    distance
   );
 }
 
+
+async function performCashout(){
+  if(!session)return;
+
+  const button=$("confirmCashoutBtn");
+
+  if(button){
+    button.disabled=true;
+    button.textContent="⏳ در حال تبدیل...";
+  }
+
+  /*
+   * قبل از فروش دوباره محل و موقعیت را بررسی کن.
+   */
+  const zone=await loadSaleZone();
+
+  if(!zone){
+
+    toast("محل فروش پیدا نشد.");
+
+    if(button){
+      button.disabled=false;
+    }
+
+    return;
+  }
+
+  if(!lastPosition){
+
+    toast("هنوز موقعیت مکانی دریافت نشده.");
+
+    if(button){
+      button.disabled=false;
+    }
+
+    return;
+  }
+
+  const saleLat=Number(
+    zone.center_latitude
+  );
+
+  const saleLon=Number(
+    zone.center_longitude
+  );
+
+  const distance=haversine(
+    lastPosition.latitude,
+    lastPosition.longitude,
+    saleLat,
+    saleLon
+  );
+
+  const radius=Number(
+    zone.exchange_radius_m||150
+  );
+
+  if(distance>radius){
+
+    toast(
+      `برای فروش باید داخل محدوده باشی. فاصله فعلی ${Math.round(distance)} متر است.`
+    );
+
+    if(button){
+      button.disabled=false;
+      button.textContent="🪙 تبدیل گنج‌ها به سکه";
+    }
+
+    return;
+  }
+
+  const {data,error}=await db.rpc(
+    "cashout_treasures"
+  );
+
+  if(error){
+
+    console.error(
+      "CASHOUT ERROR:",
+      error
+    );
+
+    toast(
+      "تبدیل ناموفق بود: "+
+      (error.message||"خطای ناشناخته")
+    );
+
+    if(button){
+      button.disabled=false;
+      button.textContent="🪙 تلاش دوباره";
+    }
+
+    return;
+  }
+
+  const row=
+    Array.isArray(data)
+      ? data[0]
+      : data;
+
+  const coins=
+    Number(row?.coins_added||0);
+
+  const converted=
+    Number(row?.treasures_converted||0);
+
+  await loadProfile();
+
+  /*
+   * پنل فروش را نگه می‌داریم.
+   * لینک‌های نقشه همچنان قابل استفاده‌اند.
+   */
+  renderCashoutPanel(
+    zone,
+    0,
+    distance
+  );
+
+  const box=$("cashoutMapLinks");
+
+  if(box){
+
+    const success=document.createElement("div");
+
+    success.className=
+      "cashout-success";
+
+    success.innerHTML=`
+      <strong>🎉 فروش با موفقیت انجام شد!</strong>
+      <span>
+        ${converted.toLocaleString("fa-IR")}
+        گنج تبدیل شد و
+        ${coins.toLocaleString("fa-IR")}
+        سکه به حسابت اضافه شد.
+      </span>
+    `;
+
+    box.prepend(success);
+  }
+
+  toast(
+    `🪙 ${coins.toLocaleString("fa-IR")} سکه دریافت کردی!`
+  );
+}
 
 
 async function leaderboard(){
@@ -992,8 +1529,19 @@ $("logoutBtn").onclick=async()=>{
   profile=null;
   game=null;
   target=null;
-  if(watchId!==null)navigator.geolocation.clearWatch(watchId);
+  if(watchId!==null){
+    navigator.geolocation.clearWatch(watchId);
+  }
+
   watchId=null;
+  lastPosition=null;
+
+  try{
+    sessionStorage.removeItem(
+      "treasureHunterLastPosition"
+    );
+  }catch(_){}
+
   showAuthChoice();
   setPage("auth");
 };
@@ -1039,13 +1587,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   }
 
   if(cont){
-    cont.addEventListener("click",()=>{
-      if(profile?.hunting_active){
-        setPage("game");
-      }else{
-        createGame();
-      }
-    });
+    cont.addEventListener("click",resumeHunt);
   }
 
   if(reset){
