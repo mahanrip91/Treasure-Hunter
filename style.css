@@ -346,3 +346,34 @@ body.light .google{border:1px solid #ddd}
 .reset-hunt-btn:active{
   transform:scale(.92);
 }
+
+/* داستان خرابی قطب‌نما */
+.compass-story{
+  margin:0 0 14px;
+  padding:16px 17px;
+  border:1px solid rgba(245,185,66,.20);
+  border-radius:18px;
+  background:linear-gradient(
+    145deg,
+    rgba(245,185,66,.08),
+    rgba(17,23,37,.55)
+  );
+  box-shadow:0 10px 30px rgba(0,0,0,.12);
+}
+
+.compass-story-title{
+  font-weight:900;
+  color:var(--gold2);
+  margin-bottom:7px;
+}
+
+.compass-story p{
+  margin:0;
+  font-size:14px;
+  line-height:1.9;
+}
+
+#targetHint{
+  margin-top:12px;
+}
+
