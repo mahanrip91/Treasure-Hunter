@@ -78,22 +78,61 @@ function setText(id,text){
 }
 
 async function loadProfile(){
-  if(!session)return;
+  if(!session)return false;
 
-  const {data,error}=await db
-    .from("profiles")
-    .select("*")
-    .eq("id",session.user.id)
-    .single();
+  const user=session.user;
 
-  if(error){
-    console.error(error);
-    toast("خطا در دریافت پروفایل");
-    return;
+  try{
+    let {data,error}=await db
+      .from("profiles")
+      .select("*")
+      .eq("id",user.id)
+      .maybeSingle();
+
+    if(error){
+      console.error("PROFILE SELECT ERROR:",error);
+      toast("خطا در دریافت پروفایل: "+(error.message||"Unknown error"));
+      return false;
+    }
+
+    if(!data){
+      const username=
+        user.user_metadata?.username ||
+        (user.email||"user").split("@")[0];
+
+      const {data:created,error:createError}=await db
+        .from("profiles")
+        .insert({
+          id:user.id,
+          username:username,
+          email:user.email||null,
+          coins:0,
+          distance_m:0,
+          treasures_count:0,
+          total_earned:0,
+          theme:"dark"
+        })
+        .select("*")
+        .single();
+
+      if(createError){
+        console.error("PROFILE CREATE ERROR:",createError);
+        toast("ساخت پروفایل ناموفق بود: "+(createError.message||"Unknown error"));
+        return false;
+      }
+
+      data=created;
+    }
+
+    profile=data;
+    updateUI();
+    return true;
+
+  }catch(err){
+    console.error("PROFILE LOAD EXCEPTION:",err);
+    toast("خطای غیرمنتظره در پروفایل");
+    return false;
   }
-
-  profile=data;
-  updateUI();
 }
 
 function updateUI(){
