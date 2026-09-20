@@ -75,6 +75,123 @@
     )%360;
   }
 
+  /*
+    قطب‌نمای آسیب‌دیده بازی
+
+    اختلال اینجا به صورت یک مقدار لحظه‌ای نیست.
+    یک offset واقعی و پایدار داریم که آرام‌آرام تغییر می‌کند.
+
+    نتیجه:
+    - عقربه ناگهان 90 درجه نمی‌پرد.
+    - می‌تواند واقعاً تا +90 یا -90 درجه منحرف شود.
+    - بعد آرام برمی‌گردد یا به سمت دیگری منحرف می‌شود.
+    - با چرخاندن گوشی، کل قطب‌نما همچنان زنده و طبیعی کار می‌کند.
+  */
+
+  let disturbanceOffset=0;
+  let disturbanceTarget=0;
+  let disturbanceLastTargetAt=0;
+  let disturbanceTargetStartedAt=0;
+  let disturbanceSequence=null;
+
+  function randomDisturbanceTarget(){
+
+    /*
+      هر بار یکی از نقاط مختلف بازه
+      -90 تا +90 انتخاب می‌شود.
+    */
+    return -90+
+      Math.random()*180;
+  }
+
+  function updateDisturbance(seq){
+
+    const now=Date.now();
+
+    /*
+      با عوض شدن گنج، اختلال جدید ساخته شود.
+    */
+    if(disturbanceSequence!==seq){
+
+      disturbanceSequence=seq;
+
+      disturbanceOffset=0;
+
+      disturbanceTarget=
+        randomDisturbanceTarget();
+
+      disturbanceLastTargetAt=now;
+
+      disturbanceTargetStartedAt=now;
+    }
+
+    /*
+      هر 7 تا 13 ثانیه مقصد اختلال عوض می‌شود.
+      این باعث می‌شود قطب‌نما یک مدت واقعاً
+      گمراه‌کننده بماند و بعد آرام تغییر کند.
+    */
+    const targetDuration=
+      7000+
+      ((Math.abs(seq*7919)%6000));
+
+    if(
+      now-disturbanceLastTargetAt>
+      targetDuration
+    ){
+
+      disturbanceTarget=
+        randomDisturbanceTarget();
+
+      disturbanceLastTargetAt=now;
+
+      disturbanceTargetStartedAt=now;
+    }
+
+    /*
+      حرکت نرم به سمت مقدار جدید.
+      هیچ teleport ناگهانی نداریم.
+    */
+    const difference=
+      delta(
+        disturbanceTarget,
+        disturbanceOffset
+      );
+
+    /*
+      سرعت کم:
+      تقریباً چند ثانیه طول می‌کشد
+      تا از یک سمت به سمت دیگر برود.
+    */
+    const maxStep=0.55;
+
+    if(Math.abs(difference)<=maxStep){
+
+      disturbanceOffset=
+        disturbanceTarget;
+
+    }else{
+
+      disturbanceOffset +=
+        Math.sign(difference)*
+        maxStep;
+    }
+
+    /*
+      اطمینان نهایی:
+      اختلال هیچ‌وقت از -90/+90 عبور نمی‌کند.
+    */
+    disturbanceOffset=
+      Math.max(
+        -90,
+        Math.min(
+          90,
+          disturbanceOffset
+        )
+      );
+
+    return disturbanceOffset;
+  }
+
   function targetBearingWithNoise(){
 
     if(
@@ -84,36 +201,45 @@
       return null;
     }
 
-    const p=window.__compassPosition;
+    const p=
+      window.__compassPosition;
 
-    const base=bearing(
-      p.latitude,
-      p.longitude,
-      target.latitude,
-      target.longitude
+    const base=
+      bearing(
+        p.latitude,
+        p.longitude,
+        target.latitude,
+        target.longitude
+      );
+
+    const seq=
+      Number(
+        target.sequence||1
+      );
+
+    /*
+      اختلال اصلیِ پایدار و نرم.
+    */
+    const disturbance=
+      updateDisturbance(seq);
+
+    /*
+      یک نوسان بسیار کوچک طبیعی هم اضافه می‌کنیم
+      تا عقربه کاملاً مصنوعی به نظر نرسد.
+      این مقدار عمداً کوچک است.
+    */
+    const t=
+      Date.now()/1800;
+
+    const microDrift=
+      Math.sin(t)*1.8+
+      Math.sin(t*0.37+seq)*1.2;
+
+    return norm(
+      base+
+      disturbance+
+      microDrift
     );
-
-    const seq=Number(target.sequence||1);
-
-    /*
-      قطب‌نمای آسیب‌دیده:
-      خطای اصلی می‌تواند کاملاً جدی باشد؛
-      از -90 تا +90 درجه نسبت به جهت واقعی.
-    */
-    const fixed=((seq*137)%181)-90;
-
-    /*
-      خطای زنده و نرم:
-      قطب‌نما هنگام حرکت کمی نوسان می‌کند
-      و خطا دائماً یک مقدار ثابت نیست.
-    */
-    const t=Date.now()/1200;
-
-    const drift =
-      Math.sin(t)*7 +
-      Math.sin(t*0.43+seq)*4;
-
-    return norm(base+fixed+drift);
   }
 
   function render(){
