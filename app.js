@@ -179,7 +179,7 @@ async function saveLocationToSupabase(lat,lon,accuracy,timestamp){
      * اول location جدید را ثبت می‌کنیم.
      * این باعث می‌شود Backend هیچ‌وقت بدون location نماند.
      */
-    const {data:newLocation,error:insertError}=await db
+    const {error:insertError}=await db
       .from("locations")
       .insert({
         user_id:userId,
@@ -188,9 +188,7 @@ async function saveLocationToSupabase(lat,lon,accuracy,timestamp){
         longitude:Number(lon),
         accuracy:Number(accuracy||0),
         location_timestamp:Number(timestamp||Date.now())
-      })
-      .select("id")
-      .single();
+      });
 
     if(insertError){
       console.error("[LOCATION] INSERT ERROR:",insertError);
