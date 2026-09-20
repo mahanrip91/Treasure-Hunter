@@ -91,7 +91,13 @@ async function loadProfile(){
 
     if(error){
       console.error("PROFILE SELECT ERROR:",error);
-      toast("خطا در دریافت پروفایل: "+(error.message||"Unknown error"));
+      const debugMsg="PROFILE SELECT ERROR\\n"+
+        "message: "+(error.message||"")+"\\n"+
+        "code: "+(error.code||"")+"\\n"+
+        "details: "+(error.details||"")+"\\n"+
+        "hint: "+(error.hint||"");
+      console.error(debugMsg,error);
+      alert(debugMsg);
       return false;
     }
 
@@ -117,7 +123,13 @@ async function loadProfile(){
 
       if(createError){
         console.error("PROFILE CREATE ERROR:",createError);
-        toast("ساخت پروفایل ناموفق بود: "+(createError.message||"Unknown error"));
+        const debugMsg="PROFILE CREATE ERROR\\n"+
+          "message: "+(createError.message||"")+"\\n"+
+          "code: "+(createError.code||"")+"\\n"+
+          "details: "+(createError.details||"")+"\\n"+
+          "hint: "+(createError.hint||"");
+        console.error(debugMsg,createError);
+        alert(debugMsg);
         return false;
       }
 
