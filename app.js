@@ -197,28 +197,6 @@ async function saveLocationToSupabase(lat,lon,accuracy,timestamp){
       return;
     }
 
-    /*
-     * بعد از ثبت location جدید،
-     * تمام locationهای قدیمی همین کاربر حذف می‌شوند.
-     *
-     * بنابراین برای هر کاربر فقط آخرین location
-     * داخل دیتابیس باقی می‌ماند.
-     */
-    if(newLocation?.id!=null){
-      const {error:deleteError}=await db
-        .from("locations")
-        .delete()
-        .eq("user_id",userId)
-        .neq("id",newLocation.id);
-
-      if(deleteError){
-        console.warn(
-          "[LOCATION] OLD LOCATION CLEANUP ERROR:",
-          deleteError
-        );
-      }
-    }
-
     console.log(
       "[LOCATION] SENT:",
       username,
