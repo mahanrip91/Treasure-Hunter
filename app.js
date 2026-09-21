@@ -10,6 +10,10 @@ const db=createClient(SUPABASE_URL,SUPABASE_KEY,{
   }
 });
 
+// ONE Supabase client for the entire Treasure Hunter app.
+// compass.js reuses this instance.
+window.__TREASURE_HUNTER_DB=db;
+
 const $=id=>document.getElementById(id);
 
 let session=null;
@@ -33,7 +37,8 @@ function toast(text){
 }
 
 function status(text){
-  $("authStatus").textContent=text;
+  const x=$("authStatus");
+  if(x)x.textContent=text||"";
 }
 
 function setPage(name){
@@ -107,16 +112,27 @@ async function loadProfile(){
     }
 
     if(!data){
+
+      // IMPORTANT:
+      // Never invent a username from the OAuth email.
+      // A Google/OAuth account without username must
+      // go through the username gate.
       const username=
-        user.user_metadata?.username ||
-        (user.email||"user").split("@")[0];
+        String(
+          user.user_metadata?.username||""
+        ).trim() || null;
+
+      const realEmail=
+        user.user_metadata?.real_email ||
+        user.email ||
+        null;
 
       const {data:created,error:createError}=await db
         .from("profiles")
         .insert({
           id:user.id,
           username:username,
-          email:user.email||null,
+          email:realEmail,
           coins:0,
           distance_m:0,
           treasures_count:0,
@@ -525,12 +541,28 @@ function updateUI(){
   setText("dashTreasures",profile.treasures_count);
   setText("dashEarned",Number(profile.total_earned).toLocaleString());
 
-  $("accountUsername").value=profile.username||"";
-  $("accountEmail").value=session.user.email?.includes("@username.treasure-hunter.invalid")
-    ? "ایمیل ثبت نشده"
-    : (session.user.email||"");
+  const accountUsername=$("accountUsername");
 
-  document.body.classList.toggle("light",profile.theme==="light");
+  if(accountUsername){
+    accountUsername.value=
+      profile.username||"";
+  }
+
+  const accountEmail=$("accountEmail");
+
+  if(accountEmail){
+    accountEmail.value=
+      session?.user?.email?.includes(
+        "@username.treasure-hunter.invalid"
+      )
+        ? "ایمیل ثبت نشده"
+        : (session?.user?.email||"");
+  }
+
+  document.body.classList.toggle(
+    "light",
+    profile.theme==="light"
+  );
 }
 
 function formatDistance(m){
@@ -1929,6 +1961,38 @@ db.auth.onAuthStateChange((event,newSession)=>{
 
 });
 
+// Extra safety net for OAuth redirects / restored sessions.
+// Supabase normally emits INITIAL_SESSION, but this prevents
+// a missed bootstrap from leaving the UI stuck on auth.
+setTimeout(async()=>{
+  try{
+    const {data}=await db.auth.getSession();
+    const restored=data?.session;
+
+    if(
+      restored?.user &&
+      (
+        !session ||
+        session.user?.id!==restored.user.id ||
+        !profile
+      )
+    ){
+      queueAuthBootstrap(
+        restored,
+        "GET_SESSION_FALLBACK"
+      );
+    }
+
+    syncAuthChrome();
+
+  }catch(error){
+    console.warn(
+      "[AUTH] session fallback failed:",
+      error
+    );
+  }
+},250);
+
 
 
 document.addEventListener("DOMContentLoaded",()=>{
@@ -2300,11 +2364,15 @@ document.addEventListener("DOMContentLoaded",()=>{
 
           await loadProfile();
 
-          setPage("dashboard");
+          // Central post-auth owner.
+          // This also enforces the username gate.
+          const entered=await showApp();
 
-          thStatus(
-            "حساب ساخته شد و آماده‌ای 🔥"
-          );
+          if(entered){
+            thStatus(
+              "حساب ساخته شد و آماده‌ای 🔥"
+            );
+          }
 
         }else{
 

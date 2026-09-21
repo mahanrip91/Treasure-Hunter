@@ -1,18 +1,16 @@
 (function(){
-  const SUPABASE_URL="https://lscynuqzocuvqrdqigoo.supabase.co";
-  const SUPABASE_KEY="sb_publishable__nK_y3ycShuXlzWI0_obCQ_ULYuvMmH";
+  // IMPORTANT:
+  // app.js owns the ONE Supabase client.
+  // Never create another GoTrueClient here.
+  const compassDb=
+    window.__TREASURE_HUNTER_DB;
 
-  const compassDb=window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY,
-    {
-      auth:{
-        persistSession:true,
-        autoRefreshToken:true,
-        detectSessionInUrl:true
-      }
-    }
-  );
+  if(!compassDb){
+    console.error(
+      "[COMPASS] Shared Supabase client is unavailable."
+    );
+    return;
+  }
 
   let heading=null;
   let smoothHeading=null;
@@ -640,7 +638,10 @@
       80
     );
 
-    startLocationReporter();
+    // Location reporting belongs to app.js.
+    // compass.js must NOT create another GPS writer.
+    // This also prevents locations.user_id = NULL.
+
   }
 
   if(
