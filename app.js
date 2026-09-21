@@ -593,65 +593,124 @@ async function signup(){
   showApp();
 }
 
-async function login(){
-  const u=$("loginUsername").value.trim();
-  const p=$("loginPassword").value;
 
-  if(!validUsername(u))
-    return status("یوزرنیم معتبر نیست.");
+async function login(){
+  const identifier=$("loginUsername").value.trim();
+  const password=$("loginPassword").value;
+
+  if(!identifier)
+    return status("ایمیل، یوزرنیم یا شماره موبایل را وارد کن.");
+
+  if(!password)
+    return status("رمز عبور را وارد کن.");
 
   status("در حال ورود...");
 
-  let {data,error}=await db.auth.signInWithPassword({
-    email:authEmail(u),
-    password:p
-  });
+  try{
+    let email=null;
 
-  // اگر کاربر با ایمیل واقعی ثبت‌نام کرده باشد،
-  // authEmail جواب نمی‌دهد؛ از RPC برای پیدا کردن ایمیل Auth استفاده می‌کنیم.
-  if(error){
-    const lookup=await db.rpc("get_auth_email_by_username",{p_username:u});
+    /*
+     * The database already exposes this RPC:
+     * get_auth_email_by_identifier(text)
+     *
+     * It resolves username / email / phone to the Auth email.
+     */
+    const lookup=await db.rpc(
+      "get_auth_email_by_identifier",
+      {p_identifier:identifier}
+    );
 
     if(!lookup.error && lookup.data){
-      const realEmail=Array.isArray(lookup.data)
+      email=Array.isArray(lookup.data)
         ? lookup.data[0]
         : lookup.data;
-
-      if(realEmail){
-        const retry=await db.auth.signInWithPassword({
-          email:realEmail,
-          password:p
-        });
-
-        data=retry.data;
-        error=retry.error;
-      }
     }
-  }
 
-  if(error){
-    console.error(error);
-    return status("یوزرنیم یا رمز عبور اشتباه است.");
-  }
+    /*
+     * Direct email fallback.
+     */
+    if(!email && identifier.includes("@"))
+      email=identifier.toLowerCase();
 
-  session=data.session;
-  await loadProfile();
-  showApp();
+    if(!email)
+      throw new Error(
+        "این ایمیل، یوزرنیم یا شماره موبایل پیدا نشد."
+      );
+
+    const {data,error}=await db.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if(error)
+      throw error;
+
+    if(!data?.session)
+      throw new Error(
+        "ورود انجام شد ولی نشست کاربری دریافت نشد."
+      );
+
+    /*
+     * Keep the session immediately.
+     */
+    session=data.session;
+
+    await loadProfile();
+
+    /*
+     * showApp is the single owner of the post-login UI.
+     * It also enforces the username gate.
+     */
+    await showApp();
+
+    if(typeof updateUI==="function")
+      updateUI();
+
+    status("ورود موفق بود ✅");
+
+  }catch(error){
+
+    console.error(
+      "[AUTH] LOGIN ERROR:",
+      error
+    );
+
+    status(
+      error?.message ||
+      "یوزرنیم، ایمیل، شماره یا رمز عبور اشتباه است."
+    );
+  }
 }
+
 
 async function googleLogin(){
   status("در حال انتقال به Google...");
 
-  const {error}=await db.auth.signInWithOAuth({
-    provider:"google",
-    options:{
-      redirectTo:location.origin+location.pathname
-    }
-  });
+  try{
 
-  if(error){
-    console.error(error);
-    status(error.message);
+    const {error}=await db.auth.signInWithOAuth({
+      provider:"google",
+      options:{
+        redirectTo:
+          location.origin+
+          location.pathname
+      }
+    });
+
+    if(error)
+      throw error;
+
+  }catch(error){
+
+    console.error(
+      "[AUTH] GOOGLE ERROR:",
+      error
+    );
+
+    status(
+      error?.message ||
+      "ورود با Google ناموفق بود."
+    );
   }
 }
 
@@ -1606,10 +1665,66 @@ async function savePassword(){
   setTimeout(()=>setPage("dashboard"),1000);
 }
 
+
 function showApp(){
+
+  if(!session?.user){
+    $("authPage").classList.add("active");
+    return false;
+  }
+
+  const username=
+    String(profile?.username||"").trim();
+
+  if(!validUsername(username)){
+
+    const gate=
+      document.getElementById(
+        "usernameGate"
+      );
+
+    if(gate){
+
+      document
+        .querySelectorAll(".page")
+        .forEach(x=>{
+          x.classList.remove("active");
+        });
+
+      gate.classList.remove("hidden");
+
+      const input=
+        document.getElementById(
+          "usernameGateInput"
+        );
+
+      if(input){
+        input.value="";
+        setTimeout(
+          ()=>input.focus(),
+          100
+        );
+      }
+    }
+
+    return false;
+  }
+
+  const gate=
+    document.getElementById(
+      "usernameGate"
+    );
+
+  if(gate)
+    gate.classList.add("hidden");
+
   $("authPage").classList.remove("active");
+
   setPage("dashboard");
+
+  return true;
 }
+
 
 function showAuthChoice(){
   ["loginBox","signupBox","recoveryBox"].forEach(x=>$(x).classList.add("hidden"));
@@ -1687,33 +1802,114 @@ $("logoutBtn").onclick=async()=>{
 
 $("changePasswordBtn").onclick=()=>setPage("reset");
 
-db.auth.onAuthStateChange(async(event,newSession)=>{
-  session=newSession;
 
-  if(session){
-    await loadProfile();
-    showApp();
-  }else{
-    $("authPage").classList.add("active");
-    document.querySelectorAll(".page:not(#authPage)").forEach(x=>x.classList.remove("active"));
-  }
+/*
+ * ==========================================================
+ * CENTRAL AUTH CONTROLLER
+ * ==========================================================
+ *
+ * IMPORTANT:
+ * Supabase onAuthStateChange callback MUST NOT perform
+ * async Supabase calls directly.
+ *
+ * The actual bootstrap is deferred with setTimeout().
+ */
+
+let authBootstrapQueue=Promise.resolve();
+
+function queueAuthBootstrap(newSession,event){
+
+  authBootstrapQueue=
+    authBootstrapQueue.then(async()=>{
+
+      session=newSession;
+
+      console.log(
+        "[AUTH CONTROLLER]",
+        event,
+        session?.user?.id||null
+      );
+
+      if(!session){
+
+        profile=null;
+        game=null;
+        target=null;
+
+        $("authPage").classList.add("active");
+
+        document
+          .querySelectorAll(
+            ".page:not(#authPage)"
+          )
+          .forEach(x=>{
+            x.classList.remove("active");
+          });
+
+        return;
+      }
+
+      try{
+
+        const loaded=await loadProfile();
+
+        if(!loaded){
+          console.error(
+            "[AUTH CONTROLLER] profile load failed"
+          );
+          return;
+        }
+
+        /*
+         * showApp -> username gate -> dashboard
+         */
+        await showApp();
+
+        if(typeof updateUI==="function")
+          updateUI();
+
+      }catch(error){
+
+        console.error(
+          "[AUTH CONTROLLER] BOOTSTRAP ERROR:",
+          error
+        );
+
+        status(
+          "خطا در بارگذاری حساب: "+
+          (error?.message||"Unknown error")
+        );
+      }
+
+    });
+}
+
+/*
+ * NEVER make this callback async.
+ */
+
+/*
+ * Password recovery redirect.
+ */
+if(
+  new URLSearchParams(location.search).get("reset")==="1"
+){
+  setPage("reset");
+}
+
+db.auth.onAuthStateChange((event,newSession)=>{
+
+  setTimeout(()=>{
+
+    queueAuthBootstrap(
+      newSession,
+      event
+    );
+
+  },0);
+
 });
 
-(async()=>{
-  const {data}=await db.auth.getSession();
-  session=data.session;
-
-  if(session){
-    await loadProfile();
-    showApp();
-  }else{
-    $("authPage").classList.add("active");
-  }
-
-  if(new URLSearchParams(location.search).get("reset")==="1"){
-    setPage("reset");
-  }
-})();
 
 
 document.addEventListener("DOMContentLoaded",()=>{
