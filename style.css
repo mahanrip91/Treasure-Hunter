@@ -2223,3 +2223,425 @@ body.light .google{
     font-size:22px !important;
   }
 }
+
+
+/* =========================================================
+   TREASURE HUNTER — UI V3 ACCOUNT + GATE FIX
+   ========================================================= */
+
+/* ---------- STANDALONE USERNAME GATE ---------- */
+
+.username-gate-page{
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+}
+
+.username-gate-card{
+  position:relative !important;
+  width:min(460px,100%) !important;
+  max-height:calc(100dvh - 32px) !important;
+  overflow-y:auto !important;
+
+  margin:0 auto !important;
+
+  text-align:right !important;
+}
+
+.username-gate-card h2{
+  text-align:center !important;
+}
+
+.username-gate-card p{
+  text-align:center !important;
+  margin-left:auto !important;
+  margin-right:auto !important;
+  max-width:360px !important;
+}
+
+.username-gate-card label{
+  text-align:right !important;
+}
+
+.username-gate-card small{
+  text-align:right !important;
+}
+
+.username-gate-card #usernameGateBtn{
+  text-align:center !important;
+}
+
+.username-gate-card #usernameGateStatus{
+  text-align:center !important;
+}
+
+
+/* ---------- ACCOUNT PAGE ---------- */
+
+.account-section{
+  padding:20px !important;
+}
+
+.account-section-head{
+  margin-bottom:18px !important;
+  padding-bottom:15px !important;
+
+  border-bottom:
+    1px solid
+    var(--border) !important;
+}
+
+.account-section-head h2{
+  margin:0 0 5px !important;
+}
+
+.account-section-head small{
+  margin:0 !important;
+  line-height:1.9 !important;
+}
+
+
+/* Account option list */
+
+.account-options{
+  display:grid !important;
+  grid-template-columns:
+    repeat(2,minmax(0,1fr)) !important;
+
+  gap:10px !important;
+}
+
+
+/* Every account card */
+
+.account-option{
+  width:100% !important;
+  min-width:0 !important;
+  min-height:112px !important;
+
+  display:grid !important;
+
+  grid-template-columns:
+    42px
+    minmax(0,1fr)
+    24px !important;
+
+  align-items:center !important;
+  gap:10px !important;
+
+  margin:0 !important;
+  padding:15px !important;
+
+  text-align:right !important;
+
+  color:var(--text) !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,255,255,.075),
+      rgba(255,255,255,.025)
+    ) !important;
+
+  border:
+    1px solid
+    var(--border-strong) !important;
+
+  border-radius:19px !important;
+
+  box-shadow:
+    0 10px 28px rgba(0,0,0,.13),
+    inset 0 1px 0 rgba(255,255,255,.035) !important;
+
+  transition:
+    transform var(--transition),
+    border-color var(--transition),
+    background var(--transition),
+    box-shadow var(--transition) !important;
+}
+
+.account-option:hover{
+  background:
+    linear-gradient(
+      145deg,
+      rgba(128,103,255,.12),
+      rgba(255,255,255,.04)
+    ) !important;
+
+  border-color:
+    rgba(128,103,255,.35) !important;
+
+  box-shadow:
+    0 14px 34px rgba(0,0,0,.18),
+    0 0 0 1px rgba(128,103,255,.04) inset !important;
+}
+
+.account-option:active{
+  transform:scale(.985) !important;
+}
+
+
+/* Icon */
+
+.account-option > span{
+  width:42px !important;
+  height:42px !important;
+
+  display:grid !important;
+  place-items:center !important;
+
+  margin:0 !important;
+
+  font-size:21px !important;
+
+  color:var(--text) !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(128,103,255,.18),
+      rgba(245,185,66,.08)
+    ) !important;
+
+  border:
+    1px solid
+    rgba(255,255,255,.09) !important;
+
+  border-radius:14px !important;
+}
+
+
+/* Text area */
+
+.account-option > div{
+  min-width:0 !important;
+
+  display:flex !important;
+  flex-direction:column !important;
+  align-items:flex-start !important;
+
+  gap:2px !important;
+}
+
+.account-option > div b{
+  display:block !important;
+
+  margin:0 !important;
+
+  color:var(--text) !important;
+
+  font-size:13px !important;
+  line-height:1.6 !important;
+
+  font-weight:800 !important;
+}
+
+.account-option > div small{
+  display:block !important;
+
+  width:100% !important;
+
+  margin:0 !important;
+
+  overflow:hidden !important;
+
+  color:var(--muted) !important;
+
+  font-size:10.5px !important;
+  line-height:1.7 !important;
+
+  white-space:nowrap !important;
+  text-overflow:ellipsis !important;
+}
+
+
+/* Arrow */
+
+.account-option > strong{
+  display:grid !important;
+  place-items:center !important;
+
+  width:24px !important;
+  height:24px !important;
+
+  margin:0 !important;
+
+  color:var(--accent-light) !important;
+
+  font-family:Arial,sans-serif !important;
+  font-size:22px !important;
+  line-height:1 !important;
+}
+
+
+/* Account action panel */
+
+.account-action-box{
+  margin-top:14px !important;
+  padding:18px !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(128,103,255,.075),
+      rgba(255,255,255,.025)
+    ) !important;
+
+  border:
+    1px solid
+    rgba(128,103,255,.18) !important;
+
+  border-radius:20px !important;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+
+.account-action-box.hidden{
+  display:none !important;
+}
+
+#accountStatus{
+  margin-top:12px !important;
+  text-align:center !important;
+}
+
+
+/* Mobile */
+
+@media(max-width:560px){
+
+  .username-gate-card{
+    width:100% !important;
+    max-width:460px !important;
+
+    padding:
+      25px
+      18px !important;
+
+    border-radius:23px !important;
+  }
+
+  .account-section{
+    padding:16px !important;
+  }
+
+  .account-options{
+    grid-template-columns:1fr !important;
+    gap:9px !important;
+  }
+
+  .account-option{
+    min-height:82px !important;
+
+    grid-template-columns:
+      42px
+      minmax(0,1fr)
+      22px !important;
+
+    padding:12px !important;
+  }
+
+  .account-option > div b{
+    font-size:13px !important;
+  }
+
+  .account-option > div small{
+    font-size:10.5px !important;
+  }
+}
+
+
+/* Very small phones */
+
+@media(max-width:370px){
+
+  .username-gate-page{
+    padding:10px !important;
+  }
+
+  .username-gate-card{
+    padding:22px 15px !important;
+  }
+
+  .account-option{
+    grid-template-columns:
+      38px
+      minmax(0,1fr)
+      20px !important;
+
+    gap:8px !important;
+  }
+
+  .account-option > span{
+    width:38px !important;
+    height:38px !important;
+    font-size:19px !important;
+  }
+}
+
+
+/* Light theme */
+
+body.light .account-option{
+  color:var(--text) !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      #fff,
+      #f7f8fb
+    ) !important;
+
+  border-color:
+    rgba(18,24,38,.1) !important;
+
+  box-shadow:
+    0 10px 28px rgba(18,24,38,.06) !important;
+}
+
+body.light .account-option:hover{
+  background:
+    linear-gradient(
+      145deg,
+      #fff,
+      #f3f1ff
+    ) !important;
+
+  border-color:
+    rgba(93,69,217,.25) !important;
+}
+
+body.light .account-option > span{
+  background:
+    linear-gradient(
+      145deg,
+      rgba(128,103,255,.11),
+      rgba(245,185,66,.08)
+    ) !important;
+
+  border-color:
+    rgba(18,24,38,.08) !important;
+}
+
+body.light .account-action-box{
+  background:
+    linear-gradient(
+      145deg,
+      #fff,
+      #f6f4ff
+    ) !important;
+
+  border-color:
+    rgba(93,69,217,.16) !important;
+}
+
+
+/* Keep gate above every app element */
+
+.username-gate-page{
+  isolation:isolate !important;
+}
+
+.username-gate-page > .username-gate-card{
+  z-index:100000 !important;
+}
