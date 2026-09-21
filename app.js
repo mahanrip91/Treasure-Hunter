@@ -1777,6 +1777,13 @@ function showApp(){
       }
     }
 
+    /*
+     * Username Gate owns the screen now.
+     * Hide the top-left menu while the username
+     * is still missing/invalid.
+     */
+    syncAuthChrome();
+
     return false;
   }
 
@@ -1800,13 +1807,45 @@ function showApp(){
 function syncAuthChrome(){
   const menuBtn=$("menuBtn");
   const drawer=$("drawer");
-  const loggedIn=!!session?.user;
+  const gate=$("usernameGate");
 
-  if(menuBtn)
-    menuBtn.classList.toggle("hidden",!loggedIn);
+  const hasSession=!!session?.user;
 
-  if(drawer && !loggedIn)
+  const username=
+    String(profile?.username||"").trim();
+
+  const usernameReady=
+    hasSession &&
+    validUsername(username);
+
+  const gateOpen=
+    !!gate &&
+    !gate.classList.contains("hidden");
+
+  /*
+   * The menu is available ONLY after:
+   * 1) authentication exists
+   * 2) profile exists
+   * 3) username is valid
+   * 4) username gate is closed
+   *
+   * This prevents the three-line menu from appearing
+   * during Google OAuth / username confirmation.
+   */
+  const canShowMenu=
+    usernameReady &&
+    !gateOpen;
+
+  if(menuBtn){
+    menuBtn.classList.toggle(
+      "hidden",
+      !canShowMenu
+    );
+  }
+
+  if(drawer && !canShowMenu){
     drawer.classList.remove("open");
+  }
 }
 
 function showAuthChoice(){
