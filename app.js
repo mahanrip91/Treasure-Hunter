@@ -159,12 +159,50 @@ async function loadProfile(){
     }
 
     profile=data;
-    updateUI();
+
+    /*
+     * IMPORTANT:
+     * Profile loading and UI rendering are separate operations.
+     *
+     * A broken/missing optional DOM element must NOT make
+     * authentication look like a profile/database failure.
+     */
+    try{
+      if(typeof updateUI==="function"){
+        updateUI();
+      }
+    }catch(uiError){
+      console.error(
+        "[PROFILE UI ERROR]",
+        uiError
+      );
+    }
+
     return true;
 
   }catch(err){
-    console.error("PROFILE LOAD EXCEPTION:",err);
-    toast("خطای غیرمنتظره در پروفایل");
+
+    console.error(
+      "[PROFILE LOAD EXCEPTION]",
+      err
+    );
+
+    console.error(
+      "[PROFILE LOAD DETAILS]",
+      {
+        message:err?.message||"",
+        code:err?.code||"",
+        details:err?.details||"",
+        hint:err?.hint||"",
+        stack:err?.stack||""
+      }
+    );
+
+    toast(
+      "خطا در بارگذاری پروفایل: "+
+      (err?.message||"Unknown error")
+    );
+
     return false;
   }
 }
@@ -1960,40 +1998,6 @@ db.auth.onAuthStateChange((event,newSession)=>{
   },0);
 
 });
-
-// Extra safety net for OAuth redirects / restored sessions.
-// Supabase normally emits INITIAL_SESSION, but this prevents
-// a missed bootstrap from leaving the UI stuck on auth.
-setTimeout(async()=>{
-  try{
-    const {data}=await db.auth.getSession();
-    const restored=data?.session;
-
-    if(
-      restored?.user &&
-      (
-        !session ||
-        session.user?.id!==restored.user.id ||
-        !profile
-      )
-    ){
-      queueAuthBootstrap(
-        restored,
-        "GET_SESSION_FALLBACK"
-      );
-    }
-
-    syncAuthChrome();
-
-  }catch(error){
-    console.warn(
-      "[AUTH] session fallback failed:",
-      error
-    );
-  }
-},250);
-
-
 
 document.addEventListener("DOMContentLoaded",()=>{
   const start=$("startAdventure");
