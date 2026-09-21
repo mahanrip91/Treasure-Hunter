@@ -793,3 +793,693 @@ body.light .leaderboard-tab.active{
     rgba(245,185,66,.12)
   );
 }
+
+/* =========================================================
+   TREASURE HUNTER — PREMIUM UI POLISH
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap');
+
+:root{
+  --bg:#070a12;
+  --panel:#101522;
+  --panel2:#151c2d;
+  --panel3:#1b2438;
+
+  --text:#f7f8fc;
+  --muted:#9aa4bb;
+
+  --gold:#f5b942;
+  --gold2:#ffd66f;
+
+  --accent:#8067ff;
+  --accent2:#a18cff;
+
+  --green:#39d5a0;
+  --danger:#ff5c76;
+
+  --border:rgba(255,255,255,.075);
+  --border-strong:rgba(255,255,255,.12);
+
+  --shadow:
+    0 18px 55px rgba(0,0,0,.28);
+
+  --shadow-soft:
+    0 10px 30px rgba(0,0,0,.18);
+}
+
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
+
+html{
+  scroll-behavior:smooth;
+}
+
+body{
+  font-family:
+    "Vazirmatn",
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+
+  background:
+    radial-gradient(
+      700px 360px at 50% -80px,
+      rgba(128,103,255,.20),
+      transparent 70%
+    ),
+    radial-gradient(
+      500px 300px at 100% 35%,
+      rgba(245,185,66,.055),
+      transparent 70%
+    ),
+    var(--bg);
+
+  color:var(--text);
+  letter-spacing:-.12px;
+}
+
+/* ---------- APP ---------- */
+
+#app{
+  max-width:760px;
+  min-height:100vh;
+  margin:auto;
+}
+
+/* ---------- TOP BAR ---------- */
+
+.topbar{
+  padding:
+    max(14px, env(safe-area-inset-top))
+    18px
+    14px;
+
+  background:rgba(7,10,18,.78);
+  backdrop-filter:blur(22px) saturate(140%);
+  -webkit-backdrop-filter:blur(22px) saturate(140%);
+
+  border-bottom:1px solid rgba(255,255,255,.065);
+
+  box-shadow:
+    0 8px 30px rgba(0,0,0,.12);
+}
+
+.brand{
+  font-size:17px;
+  font-weight:900;
+  letter-spacing:-.35px;
+}
+
+.subbrand{
+  font-size:10px;
+  opacity:.8;
+  letter-spacing:.1px;
+}
+
+/* ---------- MAIN ---------- */
+
+main{
+  padding:22px 18px 40px;
+}
+
+.page{
+  animation:
+    pageIn .32s cubic-bezier(.2,.8,.2,1);
+}
+
+@keyframes pageIn{
+  from{
+    opacity:0;
+    transform:translateY(10px) scale(.99);
+  }
+  to{
+    opacity:1;
+    transform:none;
+  }
+}
+
+/* ---------- TYPOGRAPHY ---------- */
+
+h1,h2,h3{
+  letter-spacing:-.5px;
+  line-height:1.35;
+}
+
+h1{
+  font-size:29px;
+  font-weight:900;
+}
+
+h2{
+  font-size:21px;
+  font-weight:800;
+}
+
+p{
+  color:var(--muted);
+  line-height:2;
+  font-size:14px;
+}
+
+small{
+  color:var(--muted);
+  line-height:1.9;
+}
+
+/* ---------- HERO ---------- */
+
+.hero-card{
+  position:relative;
+  overflow:hidden;
+
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(128,103,255,.13),
+      transparent 55%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(16,21,34,.98),
+      rgba(12,17,28,.92)
+    );
+
+  border:1px solid var(--border-strong);
+  border-radius:28px;
+
+  padding:38px 24px 30px;
+
+  box-shadow:var(--shadow);
+}
+
+.hero-card::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+
+  background:
+    linear-gradient(
+      120deg,
+      transparent 30%,
+      rgba(255,255,255,.025),
+      transparent 70%
+    );
+}
+
+.big-treasure{
+  font-size:78px;
+  margin-bottom:8px;
+
+  filter:
+    drop-shadow(0 0 28px rgba(245,185,66,.28));
+}
+
+/* ---------- PANELS ---------- */
+
+.panel{
+  background:
+    linear-gradient(
+      145deg,
+      rgba(17,23,37,.98),
+      rgba(13,18,30,.94)
+    );
+
+  border:1px solid var(--border);
+  border-radius:23px;
+
+  padding:23px;
+  margin-bottom:16px;
+
+  box-shadow:var(--shadow-soft);
+}
+
+.panel p:last-child{
+  margin-bottom:0;
+}
+
+/* ---------- TEXT / STORY BLOCKS ---------- */
+
+.panel p,
+.warning p,
+.treasure-target p{
+  max-width:62ch;
+  margin-left:auto;
+  margin-right:auto;
+}
+
+.story,
+.description,
+.instruction,
+.help-text{
+  padding:20px 21px;
+  margin-top:14px;
+
+  border-radius:19px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,255,255,.025),
+      rgba(255,255,255,.012)
+    );
+
+  border:1px solid rgba(255,255,255,.055);
+}
+
+.story p,
+.description p,
+.instruction p,
+.help-text p{
+  line-height:2.15;
+  margin-bottom:13px;
+}
+
+.story p:last-child,
+.description p:last-child,
+.instruction p:last-child,
+.help-text p:last-child{
+  margin-bottom:0;
+}
+
+/* ---------- BUTTONS ---------- */
+
+.primary,
+.secondary,
+.gold,
+.google,
+.telegram-btn{
+  min-height:52px;
+
+  border-radius:16px;
+
+  padding:14px 18px;
+
+  font-family:inherit;
+  font-size:14px;
+  font-weight:800;
+
+  transition:
+    transform .18s ease,
+    box-shadow .18s ease,
+    filter .18s ease,
+    border-color .18s ease;
+}
+
+.primary{
+  background:
+    linear-gradient(
+      135deg,
+      var(--accent),
+      var(--accent2)
+    );
+
+  box-shadow:
+    0 10px 28px rgba(128,103,255,.20);
+}
+
+.primary:hover{
+  filter:brightness(1.07);
+  box-shadow:
+    0 13px 34px rgba(128,103,255,.27);
+}
+
+.secondary{
+  background:rgba(255,255,255,.045);
+  border:1px solid var(--border-strong);
+}
+
+.secondary:hover{
+  background:rgba(255,255,255,.065);
+}
+
+.gold{
+  background:
+    linear-gradient(
+      135deg,
+      #d99516,
+      var(--gold2)
+    );
+
+  box-shadow:
+    0 10px 28px rgba(245,185,66,.13);
+}
+
+.google{
+  box-shadow:0 8px 25px rgba(0,0,0,.15);
+}
+
+/* ---------- INPUTS ---------- */
+
+label{
+  margin:18px 0 8px;
+  font-size:13px;
+  font-weight:700;
+}
+
+input{
+  min-height:50px;
+
+  padding:13px 15px;
+
+  border-radius:15px;
+
+  background:
+    rgba(5,8,15,.72);
+
+  border:1px solid rgba(255,255,255,.08);
+
+  font-family:inherit;
+  font-size:14px;
+
+  transition:
+    border-color .18s ease,
+    box-shadow .18s ease,
+    background .18s ease;
+}
+
+input:focus{
+  background:#090d17;
+
+  border-color:
+    rgba(128,103,255,.65);
+
+  box-shadow:
+    0 0 0 4px rgba(128,103,255,.10);
+}
+
+/* ---------- STATUS ---------- */
+
+.status{
+  min-height:28px;
+
+  margin:8px 0;
+
+  color:var(--gold2);
+
+  line-height:1.9;
+  font-size:13px;
+}
+
+/* ---------- WELCOME ---------- */
+
+.welcome{
+  padding:
+    12px
+    4px
+    25px;
+}
+
+.welcome h1{
+  margin:
+    4px 0 8px;
+}
+
+.welcome span{
+  color:var(--muted);
+  line-height:1.9;
+}
+
+/* ---------- STATS ---------- */
+
+.stats-grid{
+  gap:13px;
+  margin-bottom:17px;
+}
+
+.stat{
+  position:relative;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(17,23,37,.98),
+      rgba(13,18,30,.95)
+    );
+
+  border:1px solid var(--border);
+
+  border-radius:21px;
+
+  padding:19px 14px;
+
+  box-shadow:
+    0 10px 28px rgba(0,0,0,.14);
+}
+
+.stat span{
+  font-size:24px;
+}
+
+.stat b{
+  font-size:21px;
+  margin:7px 0 3px;
+}
+
+/* ---------- GAME HEADER ---------- */
+
+.game-head{
+  margin-bottom:18px;
+}
+
+.game-head h2{
+  margin-bottom:3px;
+}
+
+/* ---------- PILL ---------- */
+
+.pill{
+  padding:7px 12px;
+
+  border:1px solid rgba(57,213,160,.12);
+
+  background:rgba(57,213,160,.09);
+
+  font-weight:700;
+}
+
+/* ---------- COMPASS ---------- */
+
+.compass-wrap{
+  padding:25px 0 28px;
+}
+
+.compass{
+  width:270px;
+  height:270px;
+
+  border-width:7px;
+
+  box-shadow:
+    0 0 70px rgba(128,103,255,.15),
+    inset 0 0 40px rgba(0,0,0,.62);
+}
+
+.compass-center{
+  box-shadow:
+    0 8px 25px rgba(0,0,0,.25);
+}
+
+/* ---------- TREASURE TARGET ---------- */
+
+.treasure-target{
+  padding:8px 5px 4px;
+}
+
+.target-icon{
+  margin-bottom:4px;
+}
+
+.target-distance{
+  margin:
+    12px
+    0
+    6px;
+
+  font-size:35px;
+  letter-spacing:-1px;
+}
+
+/* ---------- WARNINGS / INFO ---------- */
+
+.warning{
+  padding:21px 22px;
+
+  border-color:
+    rgba(245,185,66,.15);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(245,185,66,.055),
+      rgba(17,23,37,.82)
+    );
+}
+
+.warning p{
+  line-height:2.15;
+}
+
+/* ---------- PAGE TITLES ---------- */
+
+.page-title{
+  padding:
+    9px
+    3px
+    21px;
+}
+
+.page-title h1{
+  margin-bottom:7px;
+}
+
+.page-title p{
+  line-height:2;
+}
+
+/* ---------- LEADERBOARD ---------- */
+
+.leaderboard-item{
+  min-height:62px;
+
+  padding:14px 15px;
+
+  border-radius:18px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(17,23,37,.96),
+      rgba(13,18,30,.94)
+    );
+
+  border:1px solid var(--border);
+
+  transition:
+    transform .18s ease,
+    border-color .18s ease;
+}
+
+.leaderboard-item:hover{
+  transform:translateY(-1px);
+  border-color:rgba(128,103,255,.22);
+}
+
+.rank{
+  font-size:14px;
+}
+
+.rank-name{
+  font-weight:700;
+}
+
+.rank-coins{
+  font-size:14px;
+}
+
+/* ---------- DRAWER ---------- */
+
+.drawer{
+  backdrop-filter:blur(22px);
+  -webkit-backdrop-filter:blur(22px);
+}
+
+/* ---------- TEXT BUTTON ---------- */
+
+.text-btn{
+  font-family:inherit;
+  color:var(--accent2);
+  font-weight:700;
+}
+
+/* ---------- DIVIDERS ---------- */
+
+.or,
+.divider{
+  color:#737d95;
+  margin:19px 10px;
+}
+
+/* ---------- MOBILE ---------- */
+
+@media(max-width:480px){
+
+  main{
+    padding:
+      17px
+      13px
+      32px;
+  }
+
+  .topbar{
+    padding-left:14px;
+    padding-right:14px;
+  }
+
+  .hero-card{
+    border-radius:24px;
+    padding:31px 18px 26px;
+  }
+
+  .big-treasure{
+    font-size:68px;
+  }
+
+  h1{
+    font-size:26px;
+  }
+
+  h2{
+    font-size:19px;
+  }
+
+  p{
+    font-size:13.5px;
+    line-height:2.05;
+  }
+
+  .panel{
+    padding:19px;
+    border-radius:21px;
+  }
+
+  .story,
+  .description,
+  .instruction,
+  .help-text{
+    padding:
+      18px
+      17px;
+  }
+
+  .compass{
+    width:245px;
+    height:245px;
+  }
+
+  .stats-grid{
+    gap:10px;
+  }
+
+  .stat{
+    padding:16px 10px;
+  }
+}
+
+/* ---------- REDUCE MOTION ---------- */
+
+@media(prefers-reduced-motion:reduce){
+
+  *,
+  *::before,
+  *::after{
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+    scroll-behavior:auto!important;
+  }
+}
