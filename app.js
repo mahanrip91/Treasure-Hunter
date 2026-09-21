@@ -1721,15 +1721,29 @@ function showApp(){
   $("authPage").classList.remove("active");
 
   setPage("dashboard");
+  syncAuthChrome();
 
   return true;
 }
 
 
+function syncAuthChrome(){
+  const menuBtn=$("menuBtn");
+  const drawer=$("drawer");
+  const loggedIn=!!session?.user;
+
+  if(menuBtn)
+    menuBtn.classList.toggle("hidden",!loggedIn);
+
+  if(drawer && !loggedIn)
+    drawer.classList.remove("open");
+}
+
 function showAuthChoice(){
   ["loginBox","signupBox","recoveryBox"].forEach(x=>$(x).classList.add("hidden"));
   $("authChoice").classList.remove("hidden");
   status("");
+  syncAuthChrome();
 }
 
 $("menuBtn").onclick=()=>$("drawer").classList.add("open");
@@ -1800,7 +1814,9 @@ $("logoutBtn").onclick=async()=>{
   setPage("auth");
 };
 
-$("changePasswordBtn").onclick=()=>setPage("reset");
+const changePasswordBtn=$("changePasswordBtn");
+if(changePasswordBtn)
+  changePasswordBtn.onclick=()=>setPage("reset");
 
 
 /*
@@ -1905,6 +1921,9 @@ db.auth.onAuthStateChange((event,newSession)=>{
       newSession,
       event
     );
+
+    session=newSession;
+    syncAuthChrome();
 
   },0);
 
@@ -4076,3 +4095,12 @@ document.addEventListener("DOMContentLoaded",()=>{
   };
 
 })();
+
+
+/* ============================================================
+   TREASURE HUNTER AUTH CHROME SAFETY PATCH
+   ============================================================ */
+
+document.addEventListener("DOMContentLoaded",()=>{
+  syncAuthChrome();
+});
