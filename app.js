@@ -1762,6 +1762,7 @@ function showApp(){
         });
 
       gate.classList.remove("hidden");
+      gate.classList.add("active");
 
       const input=
         document.getElementById(
@@ -1834,7 +1835,10 @@ function syncAuthChrome(){
    */
   const canShowMenu=
     usernameReady &&
-    !gateOpen;
+    !gateOpen &&
+    document.querySelector(
+      ".page.active:not(#usernameGate)"
+    ) !== null;
 
   if(menuBtn){
     menuBtn.classList.toggle(
@@ -3478,8 +3482,10 @@ document.addEventListener("DOMContentLoaded",()=>{
         "usernameGate"
       );
 
-      if(gate)
+      if(gate){
         gate.classList.add("hidden");
+        gate.classList.remove("active");
+      }
 
       setPage("dashboard");
 
