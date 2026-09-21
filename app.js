@@ -2105,7 +2105,13 @@ document.addEventListener("DOMContentLoaded",()=>{
 
       thStatus("ورود موفق بود ✅");
 
-      setPage("dashboard");
+      /*
+       * DO NOT call setPage("dashboard") here.
+       * Central Auth Controller -> showApp()
+       * owns the post-login UI and username gate.
+       */
+
+      await showApp();
 
       if(typeof updateUI==="function"){
         updateUI();

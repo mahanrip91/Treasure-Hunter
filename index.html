@@ -413,38 +413,3 @@
 <script src="compass.js"></script>
 </body>
 </html>
-
-
-<script>
-/* Treasure Hunter Auth V4 username gate */
-document.addEventListener("DOMContentLoaded",()=>{
-  const btn=document.getElementById("usernameGateBtn");
-
-  if(!btn)return;
-
-  btn.addEventListener("click",async()=>{
-    try{
-      btn.disabled=true;
-      await submitUsernameGateV4();
-    }catch(error){
-      console.error(
-        "[AUTH V4] USERNAME GATE:",
-        error
-      );
-
-      const box=
-        document.getElementById(
-          "usernameGateStatus"
-        );
-
-      if(box){
-        box.textContent=
-          error?.message||
-          "خطای غیرمنتظره.";
-      }
-    }finally{
-      btn.disabled=false;
-    }
-  });
-});
-</script>
